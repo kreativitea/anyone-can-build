@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Easy Peasy Vacation Planning</title>
+
+<script>
+/* ===========================================================================
+   PART 1 — THE DATA
+   This is the part you edit. Everything below it is machinery that reads it.
+
+   name   what you call the place
+   lat/lng  the coordinate. Get one from Google Maps: right-click a spot and
+            the first line of the menu is "34.6873, 135.5259" — click to copy.
+   stay     how many MINUTES you would actually spend there, door to door.
+            Be honest here. This single number is what decides whether a day
+            works or not. 8 hours at a theme park is not five stops.
+   note     a sentence to remind you why it's on the list.
+   =========================================================================== */
+
+const PLACES = [
+  {
+    name: "Osaka Castle",
+    lat: 34.6873, lng: 135.5259,
+    stay: 90,
+    note: "The park around it is free and open. The keep is the part that costs money and time."
+  },
+  {
+    name: "Universal Studios Japan",
+    lat: 34.6654, lng: 135.4323,
+    stay: 480,
+    note: "A whole day, not a stop. Eight hours is the honest number once you count queues."
+  },
+  {
+    name: "Fushimi Inari Taisha",
+    lat: 34.9671, lng: 135.7727,
+    stay: 150,
+    note: "The gates go up a mountain. Halfway is about 90 min; the full loop is closer to 3 hours."
+  },
+  {
+    name: "Nara Park & Todai-ji",
+    lat: 34.6851, lng: 135.8430,
+    stay: 180,
+    note: "Deer, the Great Buddha, and a lot of walking between them."
+  },
+  {
+    name: "Arashiyama bamboo grove",
+    lat: 35.0170, lng: 135.6718,
+    stay: 180,
+    note: "The grove itself is 20 minutes. The rest of the time is the town, the monkeys, the river."
+  }
+];
+
+/* ---------------------------------------------------------------------------
+   THE CATALOG — what the "add a place" dropdown offers.
+   Same shape as PLACES above, just grouped so the menu is scannable. Add your
+   own rows freely; anything already on your list is hidden from the menu.
+
+   The coordinates here are close, not surveyed. That is fine, because they are
+   only used to sort by distance and to set the starting point of a directions
+   link. The map links search by NAME, so Google finds the real place even if a
+   coordinate is off by a street or two.
+   --------------------------------------------------------------------------- */
+
+const CATALOG = {
+  "Temples & shrines": [
+    { name: "Kiyomizu-dera",     find: "Kiyomizu-dera, Kyoto",   lat: 34.9949, lng: 135.7850, stay: 90,  note: "The terrace, and the lanes climbing up to it." },
+    { name: "Kinkaku-ji",        find: "Kinkaku-ji, Kyoto",      lat: 35.0394, lng: 135.7292, stay: 60,  note: "The Golden Pavilion. One loop, one view, done." },
+    { name: "Ginkaku-ji",        find: "Ginkaku-ji, Kyoto",      lat: 35.0270, lng: 135.7982, stay: 60,  note: "Quieter than its golden cousin, and the Philosopher's Path starts here." },
+    { name: "Sanjusangen-do",    find: "Sanjusangendo, Kyoto",   lat: 34.9879, lng: 135.7717, stay: 60,  note: "A thousand standing figures in one long hall. No photos inside." },
+    { name: "Byodo-in",          find: "Byodoin Temple, Uji",    lat: 34.8894, lng: 135.8077, stay: 75,  note: "The building on the ten-yen coin. Pair it with tea in Uji." },
+    { name: "Horyu-ji",          find: "Horyu-ji, Ikaruga",      lat: 34.6148, lng: 135.7343, stay: 90,  note: "Among the oldest wooden buildings standing anywhere." },
+    { name: "Kasuga Taisha",     find: "Kasuga Taisha, Nara",    lat: 34.6815, lng: 135.8483, stay: 60,  note: "Stone lanterns through the woods. Walk here from Nara Park." }
+  ],
+  "Parks & mountains": [
+    { name: "Minoo Falls",       find: "Minoo Falls, Osaka",     lat: 34.8540, lng: 135.4720, stay: 150, note: "A 40-minute walk up a river valley to the waterfall, and back." },
+    { name: "Mount Rokko",       find: "Mount Rokko, Kobe",      lat: 34.7783, lng: 135.2622, stay: 240, note: "Cable car up, the whole bay below. Half a day once you are there." },
+    { name: "Lake Biwa at Otsu", find: "Otsu Port, Shiga",       lat: 35.0110, lng: 135.8686, stay: 120, note: "The lakefront closest to Kyoto. Boats if you want them." },
+    { name: "Mount Yoshino",     find: "Mount Yoshino, Nara",    lat: 34.3667, lng: 135.8578, stay: 240, note: "Cherry trees in spring, and a long climb in any season." },
+    { name: "Amanohashidate",    find: "Amanohashidate",         lat: 35.5680, lng: 135.1836, stay: 300, note: "The sand bar on the north coast. Far. Check the day plan before you commit." }
+  ],
+  "City, food & views": [
+    { name: "Dotonbori",         find: "Dotonbori, Osaka",       lat: 34.6687, lng: 135.5013, stay: 90,  note: "Signs, canal, crowds. Better after dark." },
+    { name: "Umeda Sky Building",find: "Umeda Sky Building",     lat: 34.7052, lng: 135.4897, stay: 75,  note: "Open-air roof deck. Go up near sunset." },
+    { name: "Shinsekai",         find: "Shinsekai, Osaka",       lat: 34.6524, lng: 135.5063, stay: 75,  note: "Tsutenkaku tower and the kushikatsu streets under it." },
+    { name: "Kuromon Market",    find: "Kuromon Market, Osaka",  lat: 34.6653, lng: 135.5061, stay: 60,  note: "Eat standing up. An hour is plenty." },
+    { name: "Nishiki Market",    find: "Nishiki Market, Kyoto",  lat: 35.0050, lng: 135.7649, stay: 60,  note: "A narrow covered street of food stalls. Slow going when busy." },
+    { name: "Kobe Harborland",   find: "Kobe Harborland",        lat: 34.6795, lng: 135.1866, stay: 120, note: "Waterfront, and the beef if you are spending." },
+    { name: "Osaka Aquarium",    find: "Osaka Aquarium Kaiyukan",lat: 34.6545, lng: 135.4289, stay: 150, note: "One long spiral route down. You cannot rush it." },
+    { name: "Kyoto Railway Museum", find: "Kyoto Railway Museum",lat: 34.9870, lng: 135.7320, stay: 150, note: "Steam locomotives you can walk into. Bigger than it sounds." }
+  ],
+  "Whole days out": [
+    { name: "Himeji Castle",     find: "Himeji Castle",          lat: 34.8394, lng: 134.6939, stay: 180, note: "The best surviving castle in Japan, and a long way west." },
+    { name: "Koyasan",           find: "Koyasan, Wakayama",      lat: 34.2131, lng: 135.5844, stay: 300, note: "A temple town up a mountain. Really an overnight, not a day." },
+    { name: "Ise Jingu",         find: "Ise Jingu, Mie",         lat: 34.4550, lng: 136.7256, stay: 240, note: "Two shrines, far apart, in a different prefecture." }
+  ]
+};
+
+/* Where the day starts and ends. The page asks the browser where you actually
+   are; if you say no (or the browser refuses), it falls back to this. */
+const FALLBACK_HOME = { name: "Osaka Station (Umeda)", lat: 34.7025, lng: 135.4959 };
+</script>
+
+<style>
+/* ===========================================================================
+   PART 2 — HOW IT LOOKS
+   Colours are named once as variables, then reused. The second block swaps
+   them when your computer is set to dark mode. Nothing else changes.
+   =========================================================================== */
+:root {
+  --bg:      #faf7f2;   --card:    #ffffff;
+  --ink:     #1c1a17;   --ink-2:   #55504a;   --faint: #8a8378;
+  --line:    #e5ded2;   --accent:  #1a6b5a;
+  --ok-bg:   #e7f3ec;   --ok-ink:  #1a5c3f;
+  --bad-bg:  #fbeae4;   --bad-ink: #93331a;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:      #17161a;   --card:    #201f24;
+    --ink:     #f2efe9;   --ink-2:   #b3ada4;   --faint: #7d766d;
+    --line:    #32303a;   --accent:  #5fc0a6;
+    --ok-bg:   #1b3329;   --ok-ink:  #8fdcbb;
+    --bad-bg:  #3a231c;   --bad-ink: #f0a189;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 32px 20px 64px;
+  background: var(--bg); color: var(--ink-2);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", sans-serif;
+}
+.wrap { max-width: 720px; margin: 0 auto; }
+
+/* the blank title, marked so you can see it is a blank and not a bug */
+h1 { margin: 0 0 6px; font-size: 30px; line-height: 1.15; color: var(--ink); font-weight: 650; }
+.sub { margin: 0 0 26px; color: var(--faint); font-size: 15px; }
+
+/* the controls row: where you start, and how long you have */
+.controls {
+  display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+  padding: 14px 16px; margin-bottom: 18px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  font-size: 14.5px;
+}
+.controls .from { flex: 1 1 240px; }
+.controls b { color: var(--ink); font-weight: 600; }
+button {
+  font: inherit; font-size: 14px; cursor: pointer;
+  color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px;
+}
+button:hover { border-color: var(--accent); color: var(--accent); }
+input[type=number] {
+  font: inherit; width: 62px; padding: 6px 8px; text-align: right;
+  color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px;
+}
+
+/* the answer, up top where you can't miss it */
+.verdict {
+  padding: 16px 18px; border-radius: 12px; margin-bottom: 26px;
+  background: var(--ok-bg); color: var(--ok-ink);
+}
+.verdict.over { background: var(--bad-bg); color: var(--bad-ink); }
+.verdict .big { display: block; font-size: 20px; font-weight: 650; margin-bottom: 3px; }
+.verdict .why { font-size: 14.5px; opacity: 0.9; }
+
+h2 { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase;
+     color: var(--faint); font-weight: 600; margin: 30px 0 12px; }
+
+/* one card per place */
+.place {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding: 15px 16px; margin-bottom: 10px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+}
+.place.out { opacity: 0.45; }
+.place input[type=checkbox] { margin: 4px 0 0; width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+.place .body { flex: 1; min-width: 0; }
+.place .name { color: var(--ink); font-weight: 600; font-size: 17px; }
+.place .facts { font-size: 14px; margin: 3px 0 6px; }
+.place .facts span { white-space: nowrap; }
+.place .facts .dot { color: var(--line); padding: 0 6px; }
+.place .note { font-size: 14px; color: var(--faint); margin: 0 0 8px; }
+.place a { color: var(--accent); text-decoration: none; font-size: 14px; margin-right: 14px; }
+.place a:hover { text-decoration: underline; }
+
+/* the add-a-place row */
+.add {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  padding: 14px 16px; margin-top: 14px;
+  background: var(--card); border: 1px dashed var(--line); border-radius: 12px;
+  font-size: 14.5px;
+}
+.add label { color: var(--faint); }
+.add select {
+  font: inherit; font-size: 14px; flex: 1 1 240px; min-width: 0;
+  padding: 7px 9px; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px;
+}
+.add select:disabled { color: var(--faint); }
+
+/* the small "take it off the list" button, kept quiet on purpose */
+.place .drop {
+  flex: none; padding: 3px 8px; font-size: 13px; line-height: 1.4;
+  color: var(--faint); background: none; border: 1px solid transparent;
+}
+.place .drop:hover { color: var(--bad-ink); border-color: var(--line); }
+
+/* the hour-by-hour plan */
+table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+td { padding: 7px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.time { color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; width: 108px; }
+td.what { color: var(--ink-2); }
+tr.stop td.what { color: var(--ink); font-weight: 600; }
+tr.late td.time { color: var(--bad-ink); font-weight: 600; }
+
+footer { margin-top: 34px; font-size: 13.5px; color: var(--faint); }
+footer p { margin: 0 0 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===========================================================================
+     PART 3 — THE PAGE
+     Almost everything here is an empty container that the code fills in.
+     The exception is the heading, which is yours to write.
+     =========================================================================== -->
+
+<header>
+  <h1>Easy Peasy Vacation Planning</h1>
+
+  <p class="sub">Places you like, nearest first, and whether they fit into one day.</p>
+</header>
+
+<div class="controls">
+  <div class="from">Starting from <b id="home-name">…</b> <span id="home-guess"></span></div>
+  <button id="locate">Use my location</button>
+  <label>I have <input type="number" id="hours" value="12" min="1" max="24" step="0.5"> hours</label>
+</div>
+
+<div class="verdict" id="verdict"></div>
+
+<h2>The places</h2>
+<div id="list"></div>
+
+<!-- Pick from the catalog and it joins the list above, ticked into the day
+     so you can see straight away what it costs you. -->
+<div class="add">
+  <label for="pick">Add a place</label>
+  <select id="pick"></select>
+  <button id="add">Add to my list</button>
+</div>
+
+<h2>The day, hour by hour</h2>
+<table><tbody id="plan"></tbody></table>
+
+<footer id="footnotes"></footer>
+
+</div>
+<script>
+/* ===========================================================================
+   PART 4 — THE MATH
+   Three small jobs: how far, how long to get there, and how to write a
+   number of minutes so a human can read it.
+   =========================================================================== */
+
+/* How far apart are two coordinates, in kilometres, in a straight line?
+   This is the haversine formula. It is a straight line over a round Earth —
+   what a bird flies, not what a train runs. */
+function straightLineKm(a, b) {
+  const R = 6371;                        // Earth's radius in km
+  const rad = d => d * Math.PI / 180;    // degrees -> radians
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2
+          + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/* Turning that into travel time is a GUESS, and these three numbers are the
+   guess. They are here, named, so you can disagree with them and change them.
+     WIGGLE  real routes are longer than the straight line. 1.35 = 35% longer.
+     KMH     average door-to-door speed by train around Kansai, including the
+             walking at both ends and the standing on platforms.
+     FAFF    fixed minutes per leg: walk to the station, wait, change trains. */
+const WIGGLE = 1.35;
+const KMH    = 32;
+const FAFF   = 12;
+
+function travelMinutes(a, b) {
+  const km = straightLineKm(a, b) * WIGGLE;
+  return Math.round(FAFF + (km / KMH) * 60);
+}
+
+/* 195 -> "3h 15m". Minutes only under an hour. */
+function readable(mins) {
+  const h = Math.floor(mins / 60), m = Math.round(mins % 60);
+  if (h === 0) return m + "m";
+  if (m === 0) return h + "h";
+  return h + "h " + m + "m";
+}
+
+/* Minutes-since-midnight -> a clock time. Past midnight it says so, which is
+   the whole point: a plan that ends at "01:20 next day" is not a plan. */
+function clock(mins) {
+  const nextDay = mins >= 24 * 60;
+  const t = mins % (24 * 60);
+  const hh = String(Math.floor(t / 60)).padStart(2, "0");
+  const mm = String(Math.round(t % 60)).padStart(2, "0");
+  return hh + ":" + mm + (nextDay ? " next day" : "");
+}
+</script>
+<script>
+/* ===========================================================================
+   PART 5 — PUTTING IT TOGETHER
+   State, then a plan builder, then drawing it. Anything the user changes
+   calls draw() again and the whole page is rebuilt from the numbers.
+   =========================================================================== */
+
+const START = 9 * 60;                                  // the day starts at 09:00
+let home = FALLBACK_HOME;                              // until the browser says otherwise
+let homeIsGuess = true;
+/* PLACES is the list you START with. `list` is the one on screen, which the
+   dropdown grows and the remove button shrinks. */
+let list = PLACES.slice();
+let chosen = new Set(list.map(p => p.name));           // everything ticked into the day
+
+/* Every place the dropdown could ever offer: the catalog, plus any of your
+   starting places you have removed — so removing one is never permanent. */
+const everything = () => [...PLACES, ...Object.values(CATALOG).flat()];
+const lookup = name => everything().find(p => p.name === name);
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+/* Nearest first. Distance is measured from wherever "home" currently is,
+   so this re-sorts itself the moment real location arrives. */
+function byDistance() {
+  return list
+    .map(p => ({ ...p, km: straightLineKm(home, p) }))
+    .sort((a, b) => a.km - b.km);
+}
+
+/* Walk the chosen stops in order, adding travel then time-at-the-place,
+   and finally the trip home. Returns every row plus the totals. */
+function planFor(stops) {
+  const rows = [];
+  let t = START, here = home;
+  for (const p of stops) {
+    const leg = travelMinutes(here, p);
+    rows.push({ kind: "travel", from: t, mins: leg, label: "Travel to " + p.name });
+    t += leg;
+    rows.push({ kind: "stop", from: t, mins: p.stay, label: p.name });
+    t += p.stay;
+    here = p;
+  }
+  if (stops.length) {
+    const back = travelMinutes(here, home);
+    rows.push({ kind: "travel", from: t, mins: back, label: "Travel back to " + home.name });
+    t += back;
+  }
+  const sum = k => rows.filter(r => r.kind === k).reduce((s, r) => s + r.mins, 0);
+  return { rows, end: t, total: t - START, travel: sum("travel"), there: sum("stop") };
+}
+
+/* The dropdown offers everything you do not already have. Groups with nothing
+   left in them disappear, and when the whole catalog is used up the control
+   turns itself off rather than sitting there empty. */
+function drawPicker() {
+  const taken = new Set(list.map(p => p.name));
+  const back  = PLACES.filter(p => !taken.has(p.name));
+  const menu  = back.length ? { "Put back on the list": back, ...CATALOG } : CATALOG;
+
+  const html = Object.entries(menu).map(([group, items]) => {
+    const free = items.filter(p => !taken.has(p.name));
+    if (!free.length) return "";
+    return `<optgroup label="${esc(group)}">`
+         + free.map(p => `<option value="${esc(p.name)}">${esc(p.name)} — stay ${readable(p.stay)}</option>`).join("")
+         + `</optgroup>`;
+  }).join("");
+
+  const pick = document.getElementById("pick");
+  pick.innerHTML = html || `<option>every place in the catalog is already on your list</option>`;
+  pick.disabled = !html;
+  document.getElementById("add").disabled = !html;
+}
+
+function draw() {
+  const ordered = byDistance();
+  const stops   = ordered.filter(p => chosen.has(p.name));
+  const budget  = Number(document.getElementById("hours").value) * 60;
+  const plan    = planFor(stops);
+
+  document.getElementById("home-name").textContent  = home.name;
+  document.getElementById("home-guess").textContent = homeIsGuess ? "(a guess)" : "";
+
+  /* ---- the five cards, nearest first ---------------------------------- */
+  document.getElementById("list").innerHTML = ordered.map(p => {
+    const oneWay = travelMinutes(home, p);
+    /* Search by name rather than by coordinate: Google then lands on the real
+       place even where my coordinate is only roughly right. `find` is the
+       disambiguated name ("Kiyomizu-dera, Kyoto"); plain `name` is the fallback. */
+    const q      = encodeURIComponent(p.find || p.name);
+    const map    = `https://www.google.com/maps/search/?api=1&query=${q}`;
+    const dir    = `https://www.google.com/maps/dir/?api=1&origin=${home.lat},${home.lng}`
+                 + `&destination=${q}&travelmode=transit`;
+    const on     = chosen.has(p.name);
+    return `
+      <div class="place ${on ? "" : "out"}">
+        <input type="checkbox" ${on ? "checked" : ""} data-name="${esc(p.name)}"
+               aria-label="Include ${esc(p.name)} in the day">
+        <div class="body">
+          <div class="name">${esc(p.name)}</div>
+          <div class="facts">
+            <span>${p.km.toFixed(1)} km away</span><span class="dot">·</span>
+            <span>about ${readable(oneWay)} each way</span><span class="dot">·</span>
+            <span>stay ${readable(p.stay)}</span>
+          </div>
+          <p class="note">${esc(p.note)}</p>
+          <a href="${map}" target="_blank" rel="noopener">See it on the map</a>
+          <a href="${dir}" target="_blank" rel="noopener">Real directions &amp; times</a>
+        </div>
+        <button class="drop" data-drop="${esc(p.name)}"
+                title="Take ${esc(p.name)} off the list entirely">remove</button>
+      </div>`;
+  }).join("");
+
+  /* ---- the verdict ----------------------------------------------------- */
+  const v = document.getElementById("verdict");
+  if (!stops.length) {
+    v.className = "verdict";
+    v.innerHTML = `<span class="big">Nothing picked yet</span>
+                   <span class="why">Tick a place below to start building the day.</span>`;
+  } else if (plan.total <= budget) {
+    v.className = "verdict";
+    v.innerHTML = `<span class="big">This fits, with ${readable(budget - plan.total)} to spare</span>
+      <span class="why">${stops.length} ${stops.length === 1 ? "place" : "places"} ·
+      ${readable(plan.travel)} moving · ${readable(plan.there)} actually there ·
+      home by ${clock(plan.end)}.</span>`;
+  } else {
+    /* Over budget. Two things worth saying: how many of these DO fit if you
+       take them nearest-first, and whether one place is eating the whole day. */
+    let n = 0;
+    while (n < stops.length && planFor(stops.slice(0, n + 1)).total <= budget) n++;
+    const best = planFor(stops.slice(0, n));
+    const fits = n === 0
+      ? " Not even the nearest one fits in that time."
+      : ` The nearest ${n} of them do fit, with ${readable(budget - best.total)} to spare.`;
+
+    const hog = stops.reduce((a, b) => (b.stay > a.stay ? b : a));
+    const eats = hog.stay >= budget / 2
+      ? ` ${esc(hog.name)} on its own is ${readable(hog.stay)} of your ${readable(budget)}.`
+      : "";
+
+    v.className = "verdict over";
+    v.innerHTML = `<span class="big">This does not fit — ${readable(plan.total - budget)} over</span>
+      <span class="why">${readable(plan.travel)} moving · ${readable(plan.there)} actually there ·
+      you would get home at ${clock(plan.end)}.${eats}${fits}</span>`;
+  }
+
+  /* ---- the hour-by-hour plan ------------------------------------------ */
+  const body = document.getElementById("plan");
+  if (!stops.length) {
+    body.innerHTML = `<tr><td class="what">Nothing picked yet.</td></tr>`;
+  } else {
+    body.innerHTML =
+      `<tr><td class="time">${clock(START)}</td><td class="what">Leave ${esc(home.name)}</td></tr>` +
+      plan.rows.map(r => `
+        <tr class="${r.kind} ${r.from + r.mins > START + budget ? "late" : ""}">
+          <td class="time">${clock(r.from)} – ${clock(r.from + r.mins)}</td>
+          <td class="what">${esc(r.label)} <span style="color:var(--faint)">· ${readable(r.mins)}</span></td>
+        </tr>`).join("") +
+      `<tr><td class="time">${clock(plan.end)}</td><td class="what">Back home</td></tr>`;
+  }
+
+  drawPicker();
+
+  document.getElementById("footnotes").innerHTML = `
+    <p><b>Travel times are estimates, not timetables.</b> They come from the straight-line
+    distance stretched by ${Math.round((WIGGLE - 1) * 100)}%, at ${KMH} km/h door to door,
+    plus ${FAFF} minutes a leg. Good enough to rule a day in or out. Before you go, use the
+    "Real directions" link on each place.</p>
+    <p>The day is assumed to start at ${clock(START)}, and places are visited nearest first.</p>
+    <p>"Use my location" needs the page served over <code>https</code> or from
+    <code>localhost</code> — browsers refuse it on a plain <code>file://</code> page.</p>`;
+}
+
+/* ---- the things you can change ---------------------------------------- */
+document.getElementById("list").addEventListener("change", e => {
+  const name = e.target.dataset.name;
+  if (!name) return;
+  e.target.checked ? chosen.add(name) : chosen.delete(name);
+  draw();
+  /* draw() rebuilds the list from scratch, which throws away whatever had
+     focus. Put it back on the box you just used, so the keyboard still works. */
+  const again = document.querySelector(`#list input[data-name="${CSS.escape(name)}"]`);
+  if (again) again.focus();
+});
+
+/* Adding ticks it into the day as well as putting it on the list, so the
+   verdict up top reacts immediately — the cost of the choice is the point. */
+document.getElementById("add").addEventListener("click", () => {
+  const found = lookup(document.getElementById("pick").value);
+  if (!found) return;
+  list.push(found);
+  chosen.add(found.name);
+  draw();
+  document.getElementById("pick").focus();
+});
+
+/* Removing takes it off the list entirely. It goes back into the dropdown,
+   so nothing is ever lost by pressing it. */
+document.getElementById("list").addEventListener("click", e => {
+  const name = e.target.dataset.drop;
+  if (!name) return;
+  list = list.filter(p => p.name !== name);
+  chosen.delete(name);
+  draw();
+  document.getElementById("pick").focus();
+});
+
+document.getElementById("hours").addEventListener("input", draw);
+
+document.getElementById("locate").addEventListener("click", () => {
+  const btn = document.getElementById("locate");
+  if (!navigator.geolocation) { btn.textContent = "Browser can't do location"; return; }
+  btn.textContent = "Finding you…";
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      home = { name: "where you are now", lat: pos.coords.latitude, lng: pos.coords.longitude };
+      homeIsGuess = false;
+      btn.textContent = "Using your location";
+      draw();                       // distances change, so the order changes too
+    },
+    err => { btn.textContent = "Location refused — using " + FALLBACK_HOME.name; }
+  );
+});
+
+draw();
+</script>
+</body>
+</html>

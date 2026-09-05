@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anyone Can Build</title>
+<meta name="description" content="Anyone Can Build: The Art of Product Engineering with AI — Kansai Gaidai University, Fall 2026. Slides, materials and demos.">
+<script>try{var t=localStorage.getItem('kgtheme');if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
+<style>
+:root{
+  --font-sans:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Roboto Mono","Liberation Mono",monospace;
+  --font-voice:"Klee","UD Digi Kyokasho N-R","UD デジタル 教科書体 N-R","Segoe Print","Bradley Hand","Chalkboard SE",cursive;
+  /* Solarized Light (default) */
+  --paper:#fdf6e3; --panel:#fffdf6; --ink:#073642; --muted:#657b83;
+  --line:#e7e0c9; --chip:#efe8d0; --code-bg:#eee8d5;
+  --accent:#268bd2; --accent-2:#2aa198; --good:#859900; --bad:#dc322f;
+  --on-accent:#ffffff; --accent-glow:rgba(38,139,210,.18);
+  /* Solarized's own orange and violet. Added for the restaurant floor plan, which
+     needs a third and fourth hue that are not "good" or "bad": the front is accent,
+     the back is orange, the guest is good, and the office (later decks) is violet.
+     Solarized keeps its accents identical across both themes, so these are defined once. */
+  --orange:#cb4b16; --violet:#6c71c4;
+}
+html[data-theme="dark"]{
+  /* Solarized Dark */
+  --paper:#002b36; --panel:#073642; --ink:#eee8d5; --muted:#93a1a1;
+  --line:#0e4b59; --chip:#083f4c; --code-bg:#052d38;
+  --accent:#289be2; --accent-2:#2aa198; --good:#93a300; --bad:#dc322f;
+  --on-accent:#002b36; --accent-glow:rgba(40,155,226,.30);
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0;font-family:var(--font-sans);background:var(--paper);color:var(--ink);
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:52rem;margin:0 auto;padding:clamp(1.5rem,5vw,4rem) clamp(1.1rem,4vw,2rem) 5rem}
+header{border-bottom:1px solid var(--line);padding-bottom:1.6rem;margin-bottom:2.4rem;
+  position:relative}
+h1{font-size:clamp(1.9rem,5.5vw,3rem);line-height:1.12;margin:0 0 .5rem;letter-spacing:-.02em}
+h1 .sub{display:block;font-size:.44em;font-weight:600;color:var(--accent);letter-spacing:0;
+  margin-top:.5rem}
+.where{color:var(--muted);font-size:.95rem;margin:.9rem 0 0}
+.lede{font-size:1.06rem;margin:1.6rem 0 0;max-width:40rem}
+h2{font-size:1.02rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
+  font-weight:700;margin:3.2rem 0 1.1rem}
+ul{list-style:none;margin:0;padding:0}
+h3{margin:0;font-size:1.12rem;letter-spacing:-.01em}
+p{margin:.35rem 0 0}
+
+.cls{border:1px solid var(--line);border-radius:12px;background:var(--panel);
+  padding:1.15rem 1.25rem;margin-bottom:.85rem}
+.chd{display:flex;gap:.9rem;align-items:baseline}
+.cnum{font-family:var(--font-mono);font-size:.82rem;color:var(--on-accent);
+  background:var(--accent);border-radius:6px;padding:.2rem .5rem;flex:none;
+  align-self:flex-start;margin-top:.15rem}
+.when{color:var(--muted);font-size:.85rem;margin:.15rem 0 0}
+.blurb{color:var(--muted);font-size:.95rem;margin:.7rem 0 0}
+.arts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1rem}
+.art{display:block;text-decoration:none;color:inherit;border:1px solid var(--line);
+  border-radius:8px;padding:.5rem .8rem;background:var(--paper);min-width:9.5rem}
+.art:hover,.art:focus-visible{border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--accent-glow);outline:none}
+.al{display:block;font-weight:650;font-size:.95rem;color:var(--accent)}
+.an{display:block;font-size:.82rem;color:var(--muted);margin-top:.1rem}
+.empty{color:var(--muted)}
+
+.doc,.demo{border-bottom:1px solid var(--line);padding:.95rem 0}
+.doc a,.demo a{text-decoration:none;color:var(--accent)}
+.doc a:hover h3,.demo a:hover h3,.doc a:focus-visible h3,.demo a:focus-visible h3{
+  text-decoration:underline}
+.doc p,.demo p{color:var(--muted);font-size:.93rem;max-width:42rem}
+.ext{font-size:.78em;margin-left:.35em;color:var(--muted);vertical-align:.15em}
+/* the last row of a section already has the next heading, or the footer's own rule,
+   under it — a second line there reads as an empty row */
+ul li:last-child.doc,ul li:last-child.demo{border-bottom:none}
+
+footer{margin-top:3.5rem;padding-top:1.4rem;border-top:1px solid var(--line);
+  color:var(--muted);font-size:.88rem}
+footer a{color:var(--accent)}
+.tbtn{position:absolute;top:.1rem;right:0;background:var(--panel);color:var(--muted);
+  border:1px solid var(--line);border-radius:999px;width:2.3rem;height:2.3rem;
+  font-size:1rem;cursor:pointer;line-height:1}
+.tbtn:hover,.tbtn:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+html[data-theme="dark"] .tbtn .sun{display:inline}
+html[data-theme="dark"] .tbtn .moon{display:none}
+.tbtn .sun{display:none}
+@media (prefers-reduced-motion:no-preference){.art,.tbtn{transition:border-color .15s,box-shadow .15s}}
+</style></head>
+<body><div class="wrap">
+<header>
+<button class="tbtn" id="tbtn" aria-label="Switch between light and dark"><span class="sun">&#9728;</span><span class="moon">&#9790;</span></button>
+<h1>Anyone Can Build<span class="sub">The Art of Product Engineering with AI</span></h1>
+<p class="where">Kansai Gaidai University &middot; Asian Studies Program &middot; Fall 2026 &middot; Michael Omoto</p>
+<p class="lede">Everything from class, in one place: the slides as they were shown, what to
+read or watch afterwards, and the demos built in front of the room. New material appears
+here on the day it is taught.</p>
+</header>
+
+<h2>Classes</h2>
+<ul><li class="cls"><div class="chd"><span class="cnum">1</span><div><h3>Software engineering vs. coding; setup</h3><p class="when">Sept 4 (A)</p></div></div><p class="blurb">What software engineering really is (usable software, at scale and over time) versus just writing code — the inner loop, the kitchen metaphor, and getting your toolkit running.</p><div class="arts"><a class="art" href="class-01/01-anyone-can-build.html"><span class="al">Slides</span><span class="an">the deck from class</span></a><a class="art" href="class-01/01-additional-content.html"><span class="al">After class</span><span class="an">the watch and read for this week</span></a></div></li><li class="cls"><div class="chd"><span class="cnum">2</span><div><h3>Studio: ship something live today</h3><p class="when">Sept 4 (B)</p></div></div><p class="blurb">Build and deploy a tiny web page to a public URL, walking the inner loop end to end.</p><div class="arts"><a class="art" href="class-02/02-anyone-can-build.html"><span class="al">Slides</span><span class="an">the deck from class</span></a><a class="art" href="class-02/02-additional-content.html"><span class="al">After class</span><span class="an">the watch and read for this week</span></a></div></li></ul>
+
+<h2>Demos</h2>
+<ul><li class="demo"><a href="demos/day-trip-planner/index.html"><h3>Easy Peasy Vacation Planning</h3></a><p>Five places around Kansai, sorted by how far they are from wherever you are standing, and an hour-by-hour day built from them — including the travel between the stops, not just there and back. It tells you whether the day fits, and when it does not, how many of them would. Add more places from the list. It fetches nothing: everything it knows is written into the one file, and the only network use is the map links you choose to open.</p></li><li class="demo"><a href="https://kreativitea.github.io/kg-class-demo/" target="_blank" rel="noopener"><h3>Earthquakes around Japan<span class="ext" aria-label="opens in a new tab">&#8599;</span></h3></a><p>Every recorded earthquake of magnitude 4 and above around Japan since 2016 — fourteen and a half thousand of them, sized by magnitude and coloured by depth. Move the sliders, play the years, or cut a cross-section down through the subduction zone. Built in front of the room in Class 1.</p></li></ul>
+
+<h2>The course</h2>
+<ul><li class="doc"><a href="syllabus.html"><h3>Syllabus</h3></a><p>what the course is, how it is graded, and the whole schedule</p></li></ul>
+
+<footer>
+<p>Every deck opens in a browser and needs nothing installed. Use the arrow keys to move
+through it, <b>t</b> to switch between light and dark, and <b>j</b> where a deck has been
+translated into Japanese.</p>
+<p>Published from <a href="https://github.com/kreativitea/anyone-can-build">github.com/kreativitea/anyone-can-build</a>.</p>
+</footer>
+</div>
+<script>
+var root=document.documentElement,b=document.getElementById('tbtn');
+b.addEventListener('click',function(){
+  root.dataset.theme = root.dataset.theme==='dark' ? 'light' : 'dark';
+  try{localStorage.setItem('kgtheme',root.dataset.theme);}catch(e){}});
+document.addEventListener('keydown',function(ev){
+  var n=ev.target&&ev.target.nodeName;
+  if(n==='INPUT'||n==='TEXTAREA'||ev.metaKey||ev.ctrlKey||ev.altKey)return;
+  if(ev.key==='t'||ev.key==='T')b.click();});
+</script>
+</body></html>
