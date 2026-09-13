@@ -16,6 +16,8 @@ what to read or watch afterwards, and the demos built in front of the room.
 | [`syllabus.html`](syllabus.html) | what the course is, how it is graded, the schedule |
 | `class-01/` | Class 1 — Software engineering vs. coding; setup |
 | `class-02/` | Class 2 — Studio: ship something live today |
+| `class-03/` | Class 3 — Reading and testing code you didn't write |
+| `class-04/` | Class 4 — Studio: the SDLC + second fast loop |
 | `demos/day-trip-planner/` | Easy Peasy Vacation Planning |
 | <https://kreativitea.github.io/kg-class-demo/> | Earthquakes around Japan |
 

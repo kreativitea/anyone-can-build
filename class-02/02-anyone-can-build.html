@@ -214,6 +214,15 @@ code{font-family:var(--font-mono);background:var(--chip);padding:.1vmin .8vmin;b
 .code-steps li::before{content:counter(cs);position:absolute;left:0;top:.2vmin;width:3.4vmin;height:3.4vmin;
   border-radius:50%;background:var(--accent);color:var(--on-accent);font-family:var(--font-mono);
   font-size:1.9vmin;font-weight:700;display:flex;align-items:center;justify-content:center}
+/* ...or BESIDE it (s.side): the steps in plain words on the left, the same steps written
+   for the computer on the right, so the eye can go from one to the other and back. */
+.code-side{display:flex;gap:4vmin;align-items:center;width:100%;margin-top:2.4vmin}
+.code-side .code-steps{flex:0 0 37%;margin:0;gap:2.4vmin}
+.code-side .code-steps li{font-size:2.55vmin}
+.code-side .codeblock{flex:1 1 0;min-width:0;margin-top:0;font-size:2.05vmin}
+/* the outward arrow under a code block that is an address (s.link): sized to be pressed */
+.code-link{margin-top:1.4vmin;padding-left:2.6vmin;font-size:4.6vmin;line-height:1;text-align:left}
+.code-link .extlink{margin-left:0}
 .codeblock .c{color:var(--muted)}                 /* comment  */
 .codeblock .k{color:var(--accent);font-weight:700}/* keyword  */
 .codeblock .s{color:var(--good)}                  /* string   */
@@ -284,12 +293,32 @@ code{font-family:var(--font-mono);background:var(--chip);padding:.1vmin .8vmin;b
    The ja text also switches to the Japanese face and drops the uppercasing and
    letter-spacing the mono chrome uses: neither does anything for kana and kanji
    except push them apart.
+   Where a line may end is the other thing Japanese needs. It has no spaces, so a
+   browser left to itself ends a line anywhere, in the middle of a word too: あなた
+   came out as あ / なた on the last slide of Class 4. line-break:strict, in every
+   browser, keeps the Japanese rules about what may not start a line (。、ー, small
+   kana). Chrome and Edge 119+ can also find the phrases (word-break:auto-phrase) and
+   end the line between two of them. They do it only for text marked as Japanese,
+   which is what the lang="ja" on every span.ja is for. <html> stays lang="en",
+   because anything the page has not translated is still English.
+   auto-phrase costs one thing, and overflow-wrap:anywhere pays it back. A box that
+   takes its width from its content (a centred statement, a flex item, the header of a
+   design page) can no longer be narrower than its longest phrase, and a phrase can be
+   long. Class 3 asks
+     でも、二台のコンピュータでなければならないのだろうか？
+   and everything after 二台の is one phrase, which ran off the side of the slide.
+   anywhere lets that box shrink again. The line still ends between phrases where a
+   phrase fits, and breaks inside one only where it cannot. Not in a table cell: there
+   anywhere lets the table squeeze a Japanese column to one character wide, so a cell
+   keeps its phrases whole and the table comes out a little wider instead. A browser
+   without auto-phrase gets none of this and stays exactly as it was.
    The Japanese face is declared inside the markers rather than up in the palette
    block, because build-doc.js copies the palette verbatim into every design page
    and copies THIS only into the ones that have Japanese. Everything between the
-   markers is read out of here by build-doc.js, the same way the toggles below
-   are: the designs are bilingual too now, and one source for the rule is what
-   keeps a design page and a deck from disagreeing about what "j" does. */
+   markers is read out of here by build-doc.js and build-index.py, the same way the
+   toggles below are: the designs and the index are bilingual too now, and one
+   source for the rule is what keeps a design page, the index and a deck from
+   disagreeing about what "j" does. */
 /* ==i18n== */
 :root{--font-sans-ja:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic","Noto Sans JP",Meiryo,sans-serif}
 .i18n{display:contents}
@@ -297,6 +326,8 @@ code{font-family:var(--font-mono);background:var(--chip);padding:.1vmin .8vmin;b
 html[data-lang="en"] .i18n>span.en{display:contents}
 html[data-lang="ja"] .i18n>span.ja{display:contents}
 .i18n>span.ja{font-family:var(--font-sans-ja);text-transform:none;letter-spacing:.02em;line-break:strict}
+@supports (word-break:auto-phrase){.i18n>span.ja{word-break:auto-phrase;overflow-wrap:anywhere}
+  :is(td,th) .i18n>span.ja{overflow-wrap:normal}}
 /* ==/i18n== */
 /* ---- the two toggles ----------------------------------------------------
    Light/dark and language are the same control, so they are drawn the same way:
@@ -638,12 +669,18 @@ function pvWrite(){
   // English per note, so an untranslated note is still there to be read.
   const ja = root.dataset.lang === 'ja';
   const pick = (o,k) => (ja && o && o[k+'ja']) || (o && o[k]) || '';
+  // ...and says which language it picked. The browser ends a Japanese line between
+  // phrases only in text it knows is Japanese; see "bilingual slides" in deck.css.
+  const lang = (o,k) => (ja && o && o[k+'ja']) ? 'ja' : 'en';
   d.getElementById('pv-pos').textContent = (i+1) + ' / ' + slides.length;
   d.getElementById('pv-title').textContent = pick(cur,'t');
+  d.getElementById('pv-title').lang = lang(cur,'t');
   d.getElementById('pv-note').innerHTML = pick(cur,'n') || '<span class="pv-empty">no Say: line for this slide in the design</span>';
+  d.getElementById('pv-note').lang = lang(cur,'n');
   d.getElementById('pv-next').innerHTML = nxt
     ? '<b>Next &mdash; ' + pick(nxt,'t') + '</b><br>' + pick(nxt,'n').replace(/<[^>]+>/g,'').slice(0,240) + '&hellip;'
     : '<b>End of deck</b>';
+  d.getElementById('pv-next').lang = lang(nxt,'n');
   d.body.setAttribute('data-theme', root.dataset.theme || 'light');
   d.body.setAttribute('data-lang', root.dataset.lang || 'en');
 }
@@ -663,6 +700,7 @@ function pvOpen(){
     + 'padding:20px;display:flex;flex-direction:column;height:100vh;gap:13px}'
     + 'body[data-lang=ja]{font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",'
     + '"Noto Sans JP",Meiryo,sans-serif;line-break:strict}'
+    + '@supports (word-break:auto-phrase){[lang=ja]{word-break:auto-phrase;overflow-wrap:anywhere}}'
     + 'header{display:flex;align-items:baseline;gap:16px;border-bottom:2px solid var(--line);padding-bottom:10px}'
     + '#pv-pos{font-family:ui-monospace,monospace;font-size:15px;color:var(--muted)}'
     + '#pv-title{font-size:21px;font-weight:800;flex:1}'
