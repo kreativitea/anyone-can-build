@@ -1,0 +1,881 @@
+<!DOCTYPE html><html lang="en" data-theme="dark" data-lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Class 6 — Build a classifier</title>
+<style>/* Anyone Can Build — shared deck styles.
+   Scheme: Solarized, with a light/dark toggle (data-theme on <html>).
+   Type system, three registers: sans = presentation (the deck speaking); mono = the
+   "machine voice" (code, prompts, commands, labels/chrome); voice = the handwritten
+   register, reserved for verbatim words that belong to a person, shown as an artifact
+   (a journal entry, a user's sentence). Projector-friendly; no web fonts (system
+   stacks) — the voice stack leans on the education hands the OS ships: Klee on macOS,
+   UD Digi Kyokasho on Windows, both covering Japanese and Latin in one face. */
+:root{
+  --font-sans:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Roboto Mono","Liberation Mono",monospace;
+  --font-voice:"Klee","UD Digi Kyokasho N-R","UD デジタル 教科書体 N-R","Segoe Print","Bradley Hand","Chalkboard SE",cursive;
+  /* Solarized Light (default) */
+  --paper:#fdf6e3; --panel:#fffdf6; --ink:#073642; --muted:#657b83;
+  --line:#e7e0c9; --chip:#efe8d0; --code-bg:#eee8d5;
+  --accent:#268bd2; --accent-2:#2aa198; --good:#859900; --bad:#dc322f;
+  --on-accent:#ffffff; --accent-glow:rgba(38,139,210,.18);
+  /* Solarized's own orange and violet. Added for the restaurant floor plan, which
+     needs a third and fourth hue that are not "good" or "bad": the front is accent,
+     the back is orange, the guest is good, and the office (later decks) is violet.
+     Solarized keeps its accents identical across both themes, so these are defined once. */
+  --orange:#cb4b16; --violet:#6c71c4;
+}
+html[data-theme="dark"]{
+  /* Solarized Dark */
+  --paper:#002b36; --panel:#073642; --ink:#eee8d5; --muted:#93a1a1;
+  --line:#0e4b59; --chip:#083f4c; --code-bg:#052d38;
+  --accent:#289be2; --accent-2:#2aa198; --good:#93a300; --bad:#dc322f;
+  --on-accent:#002b36; --accent-glow:rgba(40,155,226,.30);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#0a0a0a;color:var(--ink);
+  font-family:var(--font-sans);-webkit-font-smoothing:antialiased}
+#deck{position:fixed;inset:0}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+  padding:8.6vmin 9vmin 9vmin;background:var(--paper);overflow:hidden}  /* top pad clears the mini-spine chips */
+.slide.active{display:flex}
+.slide h1{font-size:6.2vmin;line-height:1.05;letter-spacing:-.01em}
+.slide h2{font-size:4.4vmin;line-height:1.1;letter-spacing:-.01em}
+/* kicker / eyebrow: the "label" voice — mono */
+.kicker{font-family:var(--font-mono);font-size:2.1vmin;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--accent);font-weight:700;margin-bottom:2.4vmin}
+.sub{font-size:2.6vmin;color:var(--muted);margin-top:2.2vmin;line-height:1.4}
+.meta{position:absolute;bottom:6vmin;left:9vmin;font-size:2vmin;color:var(--muted)}
+ul.big{list-style:none;margin-top:3vmin;display:flex;flex-direction:column;gap:2.4vmin}
+ul.big li{font-size:3.2vmin;line-height:1.3;padding-left:5vmin;position:relative}
+ul.big li::before{content:"";position:absolute;left:0;top:1.4vmin;width:2.4vmin;height:2.4vmin;border-radius:50%;background:var(--accent)}
+ul.big li.check::before{background:var(--good)}
+/* ol.big — the same list with numbers instead of dots. The number is the item's identity
+   when a later slide names it ("4 and 5"), so it is drawn as a chip rather than left to
+   the browser's own numbering. */
+ol.big{list-style:none;counter-reset:n;margin-top:3vmin;display:flex;flex-direction:column;gap:2.4vmin}
+ol.big li{counter-increment:n;font-size:3.2vmin;line-height:1.3;padding-left:5vmin;position:relative}
+ol.big li::before{content:counter(n);position:absolute;left:0;top:.1vmin;width:3.4vmin;height:3.4vmin;
+  border-radius:50%;background:var(--accent);color:var(--on-accent);font-family:var(--font-mono);
+  font-size:2vmin;font-weight:800;display:flex;align-items:center;justify-content:center}
+/* checklist: a single clean checkbox per row */
+/* a link on a heading: sized in em so it tracks the heading in any language */
+.extlink{display:inline-block;margin-left:.34em;line-height:0;vertical-align:baseline}
+.extlink svg{width:.58em;height:.58em;fill:none;stroke:var(--accent);stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+.extlink:hover svg{stroke:var(--accent-2)}
+.check-list{list-style:none;margin-top:3vmin;display:flex;flex-direction:column;gap:2.2vmin}
+.check-list li{font-size:3vmin;line-height:1.3;padding-left:5.6vmin;position:relative}
+.check-list li::before{content:"";position:absolute;left:0;top:.3vmin;width:3vmin;height:3vmin;
+  border:.4vmin solid var(--accent);border-radius:.5vmin;background:var(--panel)}
+.center{align-items:center;text-align:center}
+.center .sub{max-width:70vw;margin-left:auto;margin-right:auto}
+.big-statement{font-size:8vmin;line-height:1.03;letter-spacing:-.02em;font-weight:800}
+/* a command as the big line: it is the machine speaking, so it takes the mono register
+   and drops a step in size, since mono runs wider than the sans at the same point. */
+.big-statement code{font-family:var(--font-mono);font-size:.78em;font-weight:700;letter-spacing:0}
+/* a list that IS the big statement, rather than a list sitting under one: the items
+   carry the slide, so they take the statement's weight instead of the list's. */
+.big-statement ul.big{margin-top:0;gap:1.6vmin;align-items:flex-start;display:inline-flex}
+.big-statement ul.big li{font-size:6vmin;padding-left:8vmin}
+.big-statement ul.big li::before{top:2.4vmin;width:3.6vmin;height:3.6vmin}
+.tag{display:inline-block;font-family:var(--font-mono);font-size:2.4vmin;font-weight:700;color:var(--on-accent);
+  background:var(--accent);padding:.6vmin 1.9vmin;border-radius:10vmin;letter-spacing:.04em}
+/* agenda + spine */
+.agenda{display:flex;flex-direction:column;gap:2.6vmin;margin-top:2vmin}
+.agenda .item{display:flex;align-items:center;gap:2.4vmin;font-size:3.6vmin}
+.agenda .n{width:6vmin;height:6vmin;border-radius:50%;background:var(--chip);color:var(--accent);
+  font-family:var(--font-mono);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:3vmin;flex:0 0 auto}
+.spine{display:flex;gap:1.6vmin;margin-top:1vmin}
+.spine .seg{flex:1;background:var(--chip);border-radius:1.4vmin;padding:1.8vmin 2vmin;color:var(--muted);
+  font-size:2.2vmin;font-weight:600;border:2px solid transparent}
+.spine .seg .sn{font-family:var(--font-mono);font-weight:800;color:var(--muted);margin-right:.8vmin}
+.spine .seg.active{background:var(--panel);border-color:var(--accent);color:var(--ink)}
+.spine .seg.active .sn{color:var(--accent)}
+.divider .no{font-family:var(--font-mono);font-size:2.4vmin;color:var(--accent);font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.divider h1{margin:1.6vmin 0 3vmin}
+.divider .promise{font-size:2.8vmin;color:var(--muted);font-style:italic;max-width:64vw;margin-bottom:5vmin}
+/* two column */
+.cols{display:flex;gap:6vmin;margin-top:3vmin}
+.col{flex:1}
+.col .lbl{font-family:var(--font-mono);font-size:2.4vmin;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2vmin}
+.col.is .lbl{color:var(--good)} .col.isnt .lbl{color:var(--bad)}
+.col ul{list-style:none;display:flex;flex-direction:column;gap:1.8vmin}
+.col li{font-size:2.8vmin;padding-left:3.6vmin;position:relative;line-height:1.3}
+.col.is li::before{content:"✓";position:absolute;left:0;color:var(--good);font-weight:800}
+.col.isnt li::before{content:"✕";position:absolute;left:0;color:var(--bad);font-weight:800}
+/* the restaurant floor plan (shared/kitchen.js) — the recurring picture of front and back.
+   Label sizes are in viewBox units, so they scale with the drawing rather than with the
+   viewport, which keeps the plan legible at the back of a room without retuning. */
+.floorplan{display:flex;justify-content:center;width:100%}
+.floorplan svg{width:100%;max-width:96vw;max-height:66vh;height:auto}
+.fp-room{font-family:var(--font-mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+.fp-lbl{font-family:var(--font-sans);font-size:14px;font-weight:700}
+.fp-sub{font-family:var(--font-sans);font-size:12px;font-style:italic}
+
+/* cards / examples */
+.cards{display:flex;gap:2.4vmin;margin:3vmin 0}
+.card{flex:1;background:var(--panel);border:2px solid var(--line);border-radius:1.6vmin;padding:3vmin 2.4vmin;
+  text-align:center;font-size:2.8vmin;font-weight:600}
+.card .ico{font-size:6vmin;display:block;margin-bottom:1.4vmin}
+.card small{display:block;font-size:1.9vmin;color:var(--muted);font-weight:600;margin-top:1vmin;line-height:1.3}
+.card.hi{border-color:var(--accent);box-shadow:0 0 0 .5vmin var(--accent-glow)}
+/* a card that is on the slide to be seen as *not* yours: same size, greyed out */
+.card.dim{background:transparent;border-style:dashed;opacity:.45}
+/* two cards carrying a slide on their own: bigger boxes, bigger type, more air */
+.cards.big{gap:4vmin;margin:5vmin 0}
+.cards.big .card{padding:6vmin 4vmin;border-radius:2.2vmin;font-size:4.2vmin}
+.cards.big .card .ico{font-size:9vmin;margin-bottom:2.4vmin}
+.cards.big .card small{font-size:2.5vmin;margin-top:1.8vmin}
+.probe{font-size:3.4vmin;font-weight:700;margin-top:1vmin}
+.probe .q{color:var(--accent)}
+/* cycle — the loop steps are commands, so: mono */
+.cycle{display:flex;align-items:center;gap:1.4vmin;flex-wrap:wrap;margin-top:4vmin}
+.cycle .step{font-family:var(--font-mono);background:var(--accent);color:var(--on-accent);border-radius:1.4vmin;
+  padding:2.2vmin 2.8vmin;font-size:3vmin;font-weight:700}
+.cycle .step.dim{opacity:.32}
+.cycle .step.cur{box-shadow:0 0 0 .5vmin var(--accent-2)}
+.cycle .arr{color:var(--muted);font-size:3vmin}
+/* table */
+table.kv{border-collapse:collapse;margin-top:3vmin;width:100%;font-size:2.8vmin}
+table.kv td{border-bottom:1px solid var(--line);padding:2vmin 1vmin}
+table.kv td.k{font-weight:800;color:var(--ink);width:34%}
+table.kv th{text-align:left;padding:0 1vmin 1.2vmin;font-family:var(--font-mono);font-size:1.9vmin;
+  font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);border-bottom:2px solid var(--accent)}
+/* an even split, for a table whose left column is a peer of its right rather than a label for it */
+table.kv.even{font-size:2.4vmin} table.kv.even td.k{width:50%;font-weight:700}
+table.kv.even td{padding:1.5vmin 1vmin}
+/* a table shown a second time: the lit row carries the point, the rest are there to be
+   recognised. Same two states as the cycle, so one field reads the same way on both. */
+table.kv tr.dim td,table.kv tr.dim td.k{color:var(--muted);opacity:.6;font-weight:400}
+/* a muted row stays muted whatever it was bolded for: a <b> in there keeps its weight from
+   the browser, and one bold row among five grey ones reads as the lit one. */
+table.kv tr.dim b,table.kv tr.dim strong{font-weight:inherit}
+table.kv tr.cur td,table.kv tr.cur td.k{color:var(--accent)}
+/* nested box */
+.nest{margin-top:4vmin;display:flex;justify-content:center}
+.nest .outer{background:var(--panel);border:.5vmin solid var(--line);border-radius:2vmin;padding:6vmin;position:relative;min-width:60vw;text-align:center}
+.nest .outer .olbl{position:absolute;top:-1.6vmin;left:3vmin;background:var(--paper);padding:0 1.4vmin;font-weight:800;color:var(--muted);font-size:2.4vmin}
+.nest .inner{display:inline-block;background:var(--chip);border:3px solid var(--accent);border-radius:1.4vmin;padding:2.4vmin 3.4vmin;font-weight:800;font-size:3vmin;color:var(--accent)}
+/* stage layout: pin a recurring visual in the slide's fixed center; let the
+   title and caption float in fixed top/bottom zones so variable-length text
+   never shifts the visual. Use for any recurring/anchored content. */
+.stage-top{position:absolute;top:8vmin;left:9vmin;right:9vmin;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:1vmin}
+.stage-top .kicker{margin-bottom:0}
+.stage-top h1{font-size:5.4vmin}
+.stage-cap{position:absolute;bottom:12.5vmin;left:9vmin;right:9vmin;text-align:center;
+  font-size:2.6vmin;color:var(--muted);line-height:1.4;max-width:76vw;margin:0 auto}
+/* abstraction ladder */
+.ladder{display:flex;flex-direction:column;gap:1.1vmin;margin:0 auto;width:100%;max-width:72vw}
+/* ladder + example, side by side (show-not-tell rung slides) */
+.ladder-split{display:flex;gap:5vmin;align-items:center;width:100%;margin:auto 0}
+.ladder-split .ladder{flex:0 0 42%;max-width:none;margin:0}
+.ladder-split .ladder .rung{font-size:2.05vmin;padding:1.15vmin 1.7vmin;gap:1.5vmin}
+.ladder-split .ladder .rung .rn{width:2.9vmin;height:2.9vmin;font-size:1.55vmin}
+.ex-col{flex:1;display:flex;flex-direction:column;gap:1.6vmin;min-width:0}
+.ex-col .ex-label{font-family:var(--font-mono);font-size:1.6vmin;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700}
+.ex-col .codeblock{margin-top:0;font-size:2.1vmin}
+.ex-col .prompt-ex{margin-top:0}
+.ex-col .ex-cap{font-size:2.2vmin;color:var(--muted);line-height:1.4}
+/* a rung whose example is a photograph, framed like the Ada scan on the opening slide */
+.ex-col .ex-img{width:100%;max-height:52vh;object-fit:contain;display:block;
+  border:.3vmin solid var(--line);border-radius:.8vmin}
+.codeblock .ghost{color:var(--muted);opacity:.65}
+.ghost{opacity:.5}          /* general faint utility: "suggested / not yet" (e.g. the probabilistic column) */
+/* typewriter reveal: a blinking caret while the code/prompt is typing in */
+.typewrite.typing::after{content:"";display:inline-block;width:1.1ch;height:1.15em;
+  vertical-align:text-bottom;background:var(--accent);margin-left:.1ch;animation:tw-blink .8s steps(1) infinite}
+@keyframes tw-blink{50%{opacity:0}}
+@media (prefers-reduced-motion: reduce){ .typewrite.typing::after{animation:none} }
+.ladder .rung{display:flex;align-items:center;gap:2vmin;padding:1.5vmin 2.4vmin;border-radius:1.2vmin;
+  border:.28vmin solid var(--line);background:var(--panel);font-size:2.6vmin;font-weight:700}
+.ladder .rung .rn{font-family:var(--font-mono);width:3.4vmin;height:3.4vmin;border-radius:50%;background:var(--chip);color:var(--muted);
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.9vmin;flex:0 0 auto}
+.ladder .rung.todo{opacity:.4;border-style:dashed;font-weight:600}
+.ladder .rung.done{color:var(--muted)}
+.ladder .rung.done .rn{background:var(--good);color:var(--on-accent)}
+.ladder .rung.cur{border-color:var(--accent);box-shadow:0 0 0 .45vmin var(--accent-glow)}
+.ladder .rung.cur .rn{background:var(--accent);color:var(--on-accent)}
+/* dual-path lab tracks */
+.tracks{display:flex;gap:5vmin;margin-top:3vmin}
+.tracks .track{flex:1}
+.tracks .tlbl{font-family:var(--font-mono);font-size:2.4vmin;font-weight:800;letter-spacing:.02em;margin-bottom:1.8vmin;color:var(--ink)}
+.tracks .track ul{list-style:none;display:flex;flex-direction:column;gap:1.6vmin}
+.tracks .track li{font-size:2.4vmin;padding-left:3.4vmin;position:relative;line-height:1.32}
+.tracks .track li::before{content:"";position:absolute;left:0;top:1vmin;width:1.5vmin;height:1.5vmin;
+  border-radius:.35vmin;background:var(--accent)}
+/* ---- the machine voice: inline code, code blocks, prompt examples, keys ---- */
+code{font-family:var(--font-mono);background:var(--chip);padding:.1vmin .8vmin;border-radius:.5vmin;font-size:.86em;color:var(--ink)}
+.codeblock{font-family:var(--font-mono);background:var(--code-bg);border:1px solid var(--line);border-radius:1.2vmin;
+  padding:2.6vmin 3vmin;font-size:2.3vmin;line-height:1.5;color:var(--ink);white-space:pre;overflow:auto;margin-top:2.4vmin;text-align:left}
+/* numbered steps that sit ABOVE a codeblock: instructions, not code.
+   Use s.steps on a 'code' slide rather than faking comments inside the block. */
+.code-steps{list-style:none;counter-reset:cs;margin:2.6vmin 0 2.4vmin;display:flex;flex-direction:column;gap:1.5vmin}
+.code-steps li{counter-increment:cs;position:relative;padding-left:5.4vmin;font-size:2.7vmin;line-height:1.35}
+.code-steps li::before{content:counter(cs);position:absolute;left:0;top:.2vmin;width:3.4vmin;height:3.4vmin;
+  border-radius:50%;background:var(--accent);color:var(--on-accent);font-family:var(--font-mono);
+  font-size:1.9vmin;font-weight:700;display:flex;align-items:center;justify-content:center}
+/* ...or BESIDE it (s.side): the steps in plain words on the left, the same steps written
+   for the computer on the right, so the eye can go from one to the other and back. */
+.code-side{display:flex;gap:4vmin;align-items:center;width:100%;margin-top:2.4vmin}
+.code-side .code-steps{flex:0 0 37%;margin:0;gap:2.4vmin}
+.code-side .code-steps li{font-size:2.55vmin}
+.code-side .codeblock{flex:1 1 0;min-width:0;margin-top:0;font-size:2.05vmin}
+/* the outward arrow under a code block that is an address (s.link): sized to be pressed */
+.code-link{margin-top:1.4vmin;padding-left:2.6vmin;font-size:4.6vmin;line-height:1;text-align:left}
+.code-link .extlink{margin-left:0}
+.codeblock .c{color:var(--muted)}                 /* comment  */
+.codeblock .k{color:var(--accent);font-weight:700}/* keyword  */
+.codeblock .s{color:var(--good)}                  /* string   */
+.codeblock .f{color:var(--accent-2)}              /* function/tool */
+.prompt-ex{font-family:var(--font-mono);background:var(--panel);border:1px solid var(--line);
+  border-left:.6vmin solid var(--accent);border-radius:1vmin;padding:2.4vmin 2.8vmin;font-size:2.7vmin;
+  line-height:1.45;color:var(--ink);margin-top:2.4vmin;text-align:left}
+.prompt-ex .lbl{display:block;font-family:var(--font-mono);font-size:1.5vmin;text-transform:uppercase;
+  letter-spacing:.14em;color:var(--accent);font-weight:700;margin-bottom:1.2vmin}
+.prompt-ex .caret{color:var(--accent);font-weight:700}
+/* the join between what you ask and what it runs, on one slide */
+.runs{font-family:var(--font-mono);font-size:1.7vmin;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);text-align:center;margin:2.2vmin 0 -1.2vmin}
+/* voice — the handwritten register: verbatim words that belong to a person, shown as
+   an artifact. The human analogue of a code block. A few lines at most, sized
+   generously (handwriting costs reading speed, and the room reads across languages).
+   Never animated: the machine types; the hand does not. */
+.voice-ex{font-family:var(--font-voice);font-weight:600;font-size:3.6vmin;line-height:1.5;
+  color:var(--ink);margin-top:2.4vmin;text-align:left;max-width:64vw}
+.voice-ex .attrib,.voice-attrib{display:block;font-family:var(--font-sans);font-size:2.1vmin;
+  font-weight:600;color:var(--muted);margin-top:1.8vmin}
+.voice{font-family:var(--font-voice);font-weight:600}
+/* hand-note: the same register used as an annotation — a person writing under the
+   diagram or the code block above it, with a hand-drawn arrow back up to it. Tilted a
+   little, because a hand does not write straight. Never animated. */
+.hand-note{display:flex;align-items:flex-start;gap:1.1vmin;margin-top:2.6vmin;
+  font-family:var(--font-voice);font-weight:600;font-size:2.6vmin;line-height:1.3;
+  color:var(--accent-2);transform:rotate(-1.4deg);transform-origin:left center}
+.hand-note svg{width:2.4vmin;flex:none;transform:scaleY(-1)}
+/* A handwritten annotation INSIDE a code block — a label pencilled onto a printout.
+   Same register and colour as the hand-note, and the typewriter skips it (build-deck.js),
+   because the machine types and the hand does not. */
+.codeblock .hand-in{font-family:var(--font-voice);font-weight:600;color:var(--accent-2);
+  font-size:1.15em;display:inline-block;transform:rotate(-1.6deg);
+  opacity:0;transition:opacity .5s ease .2s}
+/* ...and it arrives only once the machine has finished typing, so it is never an arrow
+   pointing at a line that has not appeared yet. It still occupies its space from the
+   start, so nothing on the slide moves when it fades in. */
+.codeblock.typed .hand-in{opacity:1}
+@media (prefers-reduced-motion: reduce){ .codeblock .hand-in{transition:none} }
+.cycle+.hand-note{justify-content:center;align-self:center;margin-top:3.2vmin}
+.kbd{font-family:var(--font-mono);background:var(--panel);border:1px solid var(--line);border-bottom-width:.4vmin;
+  border-radius:.6vmin;padding:.2vmin 1vmin;font-size:.85em;color:var(--ink);white-space:nowrap}
+/* demo + close */
+.slide.close .tag{background:var(--accent)}
+/* footer / nav — status-bar voice: mono */
+.foot{position:absolute;bottom:2.6vmin;left:9vmin;right:9vmin;display:flex;justify-content:space-between;
+  align-items:center;font-family:var(--font-mono);font-size:1.7vmin;color:var(--muted)}
+.bar{position:fixed;bottom:0;left:0;height:.7vmin;background:var(--accent);transition:width .2s;z-index:5}
+/* location indicator: segmented progress bar + mini-spine chips */
+.segbar{position:fixed;bottom:0;left:0;right:0;height:.7vmin;display:flex;gap:.3vmin;z-index:6}
+.segbar .sg{flex:1;background:var(--line);overflow:hidden;position:relative}
+.segbar .sg .fl{position:absolute;inset:0;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .2s}
+.minispine{position:fixed;top:3.4vmin;right:9vmin;display:flex;gap:.9vmin;z-index:6;transition:opacity .2s}
+.minispine .chip{display:flex;align-items:center;gap:.7vmin;background:var(--panel);border:.28vmin solid var(--line);
+  border-radius:100px;padding:.7vmin 1.4vmin;font-size:1.5vmin;font-weight:700;color:var(--muted)}
+.minispine .chip .cn{font-family:var(--font-mono);width:2.3vmin;height:2.3vmin;border-radius:50%;background:var(--chip);color:var(--muted);
+  display:flex;align-items:center;justify-content:center;font-size:1.35vmin;font-weight:800}
+.minispine .chip.active{border-color:var(--accent);color:var(--ink)}
+.minispine .chip.active .cn{background:var(--accent);color:var(--on-accent)}
+/* beat dots: one per subheading inside a section, so a glance says whether we are
+   still on the same topic or have moved to the next one. Only the section we are in
+   paints them; a finished section's read as past. */
+.minispine .chip .dots{display:flex;align-items:center;gap:.55vmin;margin-left:.6vmin}
+.minispine .chip .dots i{width:.85vmin;height:.85vmin;border-radius:50%;background:var(--chip);
+  transition:background .2s,transform .2s}
+.minispine .chip .dots i.past{background:var(--muted)}
+.minispine .chip .dots i.now{background:var(--accent);transform:scale(1.45)}
+/* ---- bilingual slides (data-lang on <html>, toggled by the button or "j") ----
+   A translated string ships as both languages inside one <span class="i18n">, and
+   this is all that chooses between them. display:contents rather than inline is
+   deliberate: the wrapper generates no box at all, so a translated <li>, card
+   label or heading lays out exactly as if the span were not there — including the
+   ones whose CSS reaches inside them (.card small is display:block, .probe .q is
+   coloured). Anything the deck does not translate has no wrapper and is untouched.
+   The ja text also switches to the Japanese face and drops the uppercasing and
+   letter-spacing the mono chrome uses: neither does anything for kana and kanji
+   except push them apart.
+   Where a line may end is the other thing Japanese needs. It has no spaces, so a
+   browser left to itself ends a line anywhere, in the middle of a word too: あなた
+   came out as あ / なた on the last slide of Class 4. line-break:strict, in every
+   browser, keeps the Japanese rules about what may not start a line (。、ー, small
+   kana). Chrome and Edge 119+ can also find the phrases (word-break:auto-phrase) and
+   end the line between two of them. They do it only for text marked as Japanese,
+   which is what the lang="ja" on every span.ja is for. <html> stays lang="en",
+   because anything the page has not translated is still English.
+   auto-phrase costs one thing, and overflow-wrap:anywhere pays it back. A box that
+   takes its width from its content (a centred statement, a flex item, the header of a
+   design page) can no longer be narrower than its longest phrase, and a phrase can be
+   long. Class 3 asks
+     でも、二台のコンピュータでなければならないのだろうか？
+   and everything after 二台の is one phrase, which ran off the side of the slide.
+   anywhere lets that box shrink again. The line still ends between phrases where a
+   phrase fits, and breaks inside one only where it cannot. Not in a table cell: there
+   anywhere lets the table squeeze a Japanese column to one character wide, so a cell
+   keeps its phrases whole and the table comes out a little wider instead. A browser
+   without auto-phrase gets none of this and stays exactly as it was.
+   The Japanese face is declared inside the markers rather than up in the palette
+   block, because build-doc.js copies the palette verbatim into every design page
+   and copies THIS only into the ones that have Japanese. Everything between the
+   markers is read out of here by build-doc.js and build-index.py, the same way the
+   toggles below are: the designs and the index are bilingual too now, and one
+   source for the rule is what keeps a design page, the index and a deck from
+   disagreeing about what "j" does. */
+/* ==i18n== */
+:root{--font-sans-ja:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic","Noto Sans JP",Meiryo,sans-serif}
+.i18n{display:contents}
+.i18n>span{display:none}
+html[data-lang="en"] .i18n>span.en{display:contents}
+html[data-lang="ja"] .i18n>span.ja{display:contents}
+.i18n>span.ja{font-family:var(--font-sans-ja);text-transform:none;letter-spacing:.02em;line-break:strict}
+@supports (word-break:auto-phrase){.i18n>span.ja{word-break:auto-phrase;overflow-wrap:anywhere}
+  :is(td,th) .i18n>span.ja{overflow-wrap:normal}}
+/* ==/i18n== */
+/* ---- the two toggles ----------------------------------------------------
+   Light/dark and language are the same control, so they are drawn the same way:
+   one pill track in --chip, one knob in --accent that slides to the side that is
+   live, the dead side in --muted. Only what sits inside the track differs — two
+   icons for the theme, two words for the language.
+   The sizes are px, not vmin. These are chrome, not content: a control the reader
+   reaches for once and then forgets, the same size on a laptop, a printed-size
+   window and a projector. Everything on a slide scales with the room; this does
+   not, and at 4.4vmin it was reading as part of the slide.
+   Where the pair SITS is each surface's own business and stays out of this block:
+   the deck pins it to the corner of the window, the design pages put it in the
+   header row. Everything between the markers is copied verbatim into those other
+   two surfaces by build-doc.js and build-index.py — this file is the one source,
+   so the three cannot drift apart again. Don't put a position in here. */
+/* ==toggles== */
+.theme-toggle,.lang-toggle{border:none;background:none;padding:0;cursor:pointer;
+  opacity:.7;transition:opacity .2s;line-height:0}
+.theme-toggle:hover,.lang-toggle:hover{opacity:1}
+.tt-track,.lt-track{position:relative;display:flex;align-items:center;height:26px;
+  border-radius:999px;background:var(--chip);border:1px solid var(--line)}
+.tt-knob,.lt-knob{position:absolute;background:var(--accent);transition:left .2s;z-index:0}
+/* light/dark: sun and moon, a round knob under the live one */
+.tt-track{justify-content:space-between;width:54px;padding:0 6px}
+.tt-ico{font-size:12px;line-height:1;color:var(--muted);z-index:1;transition:color .2s}
+.tt-knob{top:50%;left:2px;width:20px;height:20px;border-radius:50%;transform:translateY(-50%)}
+html[data-theme="dark"] .tt-knob{left:calc(100% - 22px)}
+html[data-theme="light"] .tt-ico.sun{color:var(--on-accent)}
+html[data-theme="dark"]  .tt-ico.moon{color:var(--on-accent)}
+/* language: E and J, and the knob is a pill under the live one. One letter each,
+   so the two switches come out the same width and the pair reads as one control;
+   which language is which is in the button's title and its aria-label. The halves
+   are fixed at 50% so the knob lands on either exactly. */
+.lt-track{width:54px}
+.lt-opt{flex:0 0 50%;display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-size:11.5px;line-height:1;font-weight:800;
+  letter-spacing:normal;text-transform:none;color:var(--muted);z-index:1;transition:color .2s}
+.lt-knob{top:2px;bottom:2px;left:2px;width:calc(50% - 4px);border-radius:999px}
+html[data-lang="ja"] .lt-knob{left:calc(50% + 2px)}
+html[data-lang="en"] .lt-opt.en,
+html[data-lang="ja"] .lt-opt.ja{color:var(--on-accent)}
+@media print{.theme-toggle,.lang-toggle{display:none}}
+/* ==/toggles== */
+/* on a deck the pair is pinned to the corner of the window, clear of the slide */
+.deck-chrome{position:fixed;top:14px;left:14px;z-index:7;display:flex;gap:8px;align-items:center}
+
+/* ---------- on a phone ----------
+   A slide is sized in vmin, so it is the same picture on a laptop and on a wall. The
+   switches are sized in px, and that is what keeps them clear of a slide on a projector
+   and puts them on top of one on a phone. When the short side of the screen is under
+   500px, the 8.6vmin a slide leaves above its kicker is about 33px, and the switches reach
+   down to 40px, so the kicker ran under them. The chips grow leftwards from the right
+   edge, so on an upright phone a long row of them (Class 5 has five sections) ran under
+   the switches from the other side. At 1.5vmin their words were under 6px tall anyway.
+
+   So on a phone the top of the screen is a band that belongs to the chrome, and the slide
+   starts below it. The chips take the switches' own size, in px, and only the section you
+   are in keeps its name: the others show their number, which is still the whole spine at a
+   glance, and the divider slides still name every section. On a phone held sideways the
+   chips share the switches' row. Upright, that row is too narrow, so they take the row
+   under it. A slide taller than the screen now loses its bottom line instead of its kicker.
+
+   One part reaches past phones. A tablet held upright had the same chips under the
+   switches, so any upright screen shows the name on the current chip only. It also had
+   slides taller than the screen, whose kicker went up under the switches, so on any
+   upright screen that slide loses its bottom instead, as on a phone. Nothing here
+   reaches a screen that is wider than it is tall and more than 500px tall. That is every
+   laptop and every projector, so a deck on a wall looks exactly as it did. All of this is
+   here because most students read the decks on a phone (publish/README.md). */
+@media (orientation:portrait),(max-height:500px){
+  /* a chip you are not in is its number and nothing around it, so the one you are in has
+     the room for its name */
+  .minispine .chip:not(.active){padding:0;border-color:transparent;background:none}
+  .minispine .chip:not(.active) .cl,.minispine .chip:not(.active) .dots{display:none}
+  /* safe: a slide taller than the screen loses its bottom, not its kicker */
+  .slide{justify-content:safe center}
+  /* a pinned title (.stage-top) starts where every other slide starts, on the line that
+     clears the chips: at 8vmin a big title was touching the chip above it. A phone moves
+     it again, below its band */
+  .stage-top{top:8.6vmin}
+}
+@media (max-width:500px),(max-height:500px){
+  .minispine{top:14px;left:142px;justify-content:flex-end;gap:4px}
+  .minispine .chip{flex:none;height:26px;padding:0 9px 0 3px;gap:5px;border-width:1px;font-size:10.5px}
+  .minispine .chip .cn{width:18px;height:18px;font-size:10px}
+  .minispine .chip .dots{gap:3px;margin-left:1px}
+  .minispine .chip .dots i{width:5px;height:5px}
+  /* a name too long for the row ends in "…" rather than pushing the row under the switches.
+     Only the name gives way: the number stays round and the dots keep their size */
+  .minispine .chip.active{flex:0 1 auto;min-width:0}
+  .minispine .chip.active .cl{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .minispine .chip .cn,.minispine .chip .dots{flex:none}
+  /* 8px under the band, about the gap between the chips and the slide on a projector */
+  .slide{padding-top:48px}
+  .stage-top{top:48px}
+}
+@media (max-width:500px) and (orientation:portrait){
+  /* a row of its own, which is chrome, so it keeps the switches' 14px from the edge */
+  .minispine{top:48px;left:14px;right:14px}
+  .slide{padding-top:82px}
+  .stage-top{top:82px}
+}
+
+/* ---------- a row of chips too long for its screen ----------
+   A row is as long as its section names. Every deck's row but one is 82vmin or less, and
+   fits beside the switches on a 4:3 screen. Class 5's five names come to 127vmin, and with
+   its 9vmin margin that is wider than a 4:3 screen, which is 133vmin across. There the row
+   pressed its names onto two lines, ran under the switches, and came down over the kicker,
+   in presentation mode too, where the switches are hidden.
+
+   So wherever the whole row does not fit to the right of the switches, it becomes the row an
+   upright screen shows: the section you are in keeps its name and its dots, and the others
+   show their number. The screen's shape cannot tell when that is, because only the names
+   know how long they are, so the deck measures and sets .compact (fitChips, in
+   build-deck.js). Every deck's row fits on a 16:9 or 16:10 screen, so a projector of those
+   shapes never sees this. Without the script the whole row shows, as it always did. */
+.minispine.compact .chip:not(.active){padding:0;border-color:transparent;background:none}
+.minispine.compact .chip:not(.active) .cl,.minispine.compact .chip:not(.active) .dots{display:none}
+
+/* ---------- presentation mode ----------
+   Set on <html> by either of the two things that mean "this deck is in front of a room":
+   the presenter window being open (press "s") and full screen (press "f"). Each sets its
+   own attribute and clears it again, because the two start and end independently — leaving
+   full screen must not put the chrome back while the notes are still up, and closing the
+   notes must not put it back on a deck still filling a wall.
+   A deck on a projector is being read by a room, and every control on it
+   is for the presenter alone: the two switches, the Review button with its count, and
+   the "· commented" note a reviewed slide carries in its footer are all noise on a wall.
+
+   The switches and the Review button are not removed, only made invisible: they keep
+   their place and their pointer events, so putting the pointer on the corner they live
+   in brings them back. Nothing appears from moving the mouse across the slide — only
+   from being on the control itself — so a presenter waving a cursor at the screen never
+   makes chrome flash up in front of the room. The footer note has no such affordance and
+   simply goes: the same comments are still a keypress away on Shift+C. */
+html:is([data-present],[data-full]) .deck-chrome,
+html:is([data-present],[data-full]) #rvbtn{opacity:0;transition:opacity .2s}
+html:is([data-present],[data-full]) .deck-chrome:hover,
+html:is([data-present],[data-full]) .deck-chrome:focus-within,
+html:is([data-present],[data-full]) #rvbtn:hover,
+html:is([data-present],[data-full]) #rvbtn:focus{opacity:1}
+/* while the review box is open the button is the count and where the file goes, so it
+   stays visible without being pointed at */
+html:is([data-present],[data-full]) #rvbtn:has(~ #rvpanel.open){opacity:1}
+html:is([data-present],[data-full]) .slide.rvhas .foot span:first-child::after{content:none}
+
+/* statement + picture: the sentence keeps its own column so kicker/big/sub stay
+   translatable fields rather than hand-written HTML. See build-deck.js, case 'statement'. */
+.figure-split{display:flex;gap:5vmin;align-items:center;height:100%;width:100%}
+.figure-split>div:first-child{flex:0 0 44%}
+.figure-split .fig{flex:1;height:78%}
+.figure-split .fig img{width:100%;height:100%;object-fit:contain;border-radius:1.2vmin}
+/* contain, not cover: the picture may carry content that argues something (the six
+   polaroids on Class 5's sous-chef are the evidence for "a million kitchens"), and
+   cover would crop whichever end did not fit the column. */
+.credit{font-family:var(--font-mono);font-size:1.5vmin;color:var(--muted);
+  margin-top:3.2vmin;letter-spacing:.04em}
+</style><script>try{var t=localStorage.getItem('kgtheme');if(t)document.documentElement.dataset.theme=t;}catch(e){}</script><script>try{var l=localStorage.getItem('kglang');if(l)document.documentElement.dataset.lang=l;}catch(e){}</script></head>
+<body><div id="deck"><section class="slide" data-sid="anyone-can-build" data-type="title"><div class="center" style="margin:auto"><h1><span class="i18n"><span class="en" lang="en">Anyone Can Build</span><span class="ja" lang="ja">誰でもつくれる</span></span></h1><div class="sub"><span class="i18n"><span class="en" lang="en">Teach a model to see. Make it see better. Then add noise.</span><span class="ja" lang="ja">モデルに見ることを教える。もっとよく見えるようにする。そして、ノイズを加える。</span></span></div><div class="sub" style="margin-top:4vmin;font-weight:600;color:var(--ink)"><span class="i18n"><span class="en" lang="en">Class 6 &middot; Michael Omoto</span><span class="ja" lang="ja">第6回 &middot; Michael Omoto</span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>1 / 37</span></div></section>
+<section class="slide" data-sid="where-we-are-on-the-loop" data-type="raw"><div class="kicker"><span class="i18n"><span class="en" lang="en">Where we are on the loop</span><span class="ja" lang="ja">ループ上のいまの位置</span></span></div><div style="display:flex;justify-content:center;margin:auto 0"><svg viewBox="0 0 1200 620" style="width:94vw;max-height:60vh" role="img"><circle cx="600" cy="300" r="208" fill="none" stroke="var(--line)" stroke-width="4" stroke-dasharray="11 10"/><polygon points="-8.68,-7.700000000000001 8.68,-7.700000000000001 0,14" fill="var(--muted)" transform="translate(722.2593324768344,131.72446517001094) rotate(-54)"/><polygon points="-8.68,-7.700000000000001 8.68,-7.700000000000001 0,14" fill="var(--muted)" transform="translate(797.819755389392,364.27553482998906) rotate(18)"/><polygon points="-8.68,-7.700000000000001 8.68,-7.700000000000001 0,14" fill="var(--muted)" transform="translate(600,508) rotate(90)"/><polygon points="-8.68,-7.700000000000001 8.68,-7.700000000000001 0,14" fill="var(--muted)" transform="translate(402.18024461060804,364.27553482998906) rotate(162)"/><polygon points="-8.68,-7.700000000000001 8.68,-7.700000000000001 0,14" fill="var(--muted)" transform="translate(477.7406675231656,131.72446517001094) rotate(234)"/><circle cx="600" cy="92" r="56" fill="var(--chip)" stroke="var(--line)" stroke-width="3.5"/><text x="600" y="100" text-anchor="middle" font-family="var(--font-sans)" font-size="23" font-weight="800" fill="var(--ink)">Idea</text><text x="600" y="14" text-anchor="middle" font-family="var(--font-sans)" font-size="18" font-weight="600" fill="var(--muted)">what problem, and for whom</text><circle cx="797.819755389392" cy="235.72446517001094" r="56" fill="var(--chip)" stroke="var(--line)" stroke-width="3.5"/><text x="797.819755389392" y="243.72446517001094" text-anchor="middle" font-family="var(--font-sans)" font-size="23" font-weight="800" fill="var(--ink)">Design</text><text x="871.819755389392" y="241.72446517001094" text-anchor="start" font-family="var(--font-sans)" font-size="18" font-weight="600" fill="var(--muted)">what it will be, and what it will not be</text><circle cx="722.2593324768344" cy="468.27553482998906" r="56" fill="var(--chip)" stroke="var(--line)" stroke-width="3.5"/><text x="722.2593324768344" y="476.27553482998906" text-anchor="middle" font-family="var(--font-sans)" font-size="23" font-weight="800" fill="var(--ink)">Build</text><text x="796.2593324768344" y="474.27553482998906" text-anchor="start" font-family="var(--font-sans)" font-size="18" font-weight="600" fill="var(--muted)">the smallest version that actually works</text><circle cx="477.7406675231656" cy="468.27553482998906" r="56" fill="var(--chip)" stroke="var(--line)" stroke-width="3.5"/><text x="477.7406675231656" y="476.27553482998906" text-anchor="middle" font-family="var(--font-sans)" font-size="23" font-weight="800" fill="var(--ink)">Prod</text><text x="403.7406675231656" y="474.27553482998906" text-anchor="end" font-family="var(--font-sans)" font-size="18" font-weight="600" fill="var(--muted)">it is live, and strangers are using it</text><circle cx="402.18024461060804" cy="235.7244651700109" r="64" fill="var(--accent)" stroke="var(--accent)" stroke-width="3.5"/><text x="402.18024461060804" y="243.7244651700109" text-anchor="middle" font-family="var(--font-sans)" font-size="25" font-weight="800" fill="var(--on-accent)">Analysis</text><text x="328.18024461060804" y="241.7244651700109" text-anchor="end" font-family="var(--font-sans)" font-size="18" font-weight="600" fill="var(--muted)">did it work?</text><text x="600" y="290" text-anchor="middle" font-family="var(--font-sans)" font-size="30" font-weight="800" fill="var(--ink)">SDLC</text><text x="600" y="322" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">the life of a piece of software</text><text x="600" y="348" text-anchor="middle" font-family="var(--font-sans)" font-size="30" font-weight="600" fill="var(--muted)">&#8635;</text></svg></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>2 / 37</span></div></section>
+<section class="slide" data-sid="this-is-a-studio" data-type="raw" data-show="1"><div class="kicker"><span class="i18n"><span class="en" lang="en">How today works</span><span class="ja" lang="ja">今日の進め方</span></span></div><h1><span class="i18n"><span class="en" lang="en">This is a studio.</span><span class="ja" lang="ja">これはスタジオ。</span></span></h1><div style="display:flex;justify-content:center;margin:auto 0"><svg viewBox="0 0 1200 380" style="width:94vw;max-height:52vh" role="img"><rect x="60" y="120" width="188" height="110" rx="8" fill="var(--chip)" stroke="var(--line)" stroke-width="2"/><rect x="252" y="120" width="140" height="110" rx="8" fill="var(--accent)"/><rect x="396" y="120" width="56" height="110" rx="8" fill="var(--chip)" stroke="var(--line)" stroke-width="2"/><rect x="456" y="120" width="68" height="110" rx="8" fill="var(--accent)"/><rect x="528" y="120" width="20" height="110" rx="8" fill="var(--chip)" stroke="var(--line)" stroke-width="2"/><rect x="552" y="120" width="164" height="110" rx="8" fill="var(--accent)"/><rect x="720" y="120" width="20" height="110" rx="8" fill="var(--chip)" stroke="var(--line)" stroke-width="2"/><rect x="744" y="120" width="92" height="110" rx="8" fill="var(--accent)"/><rect x="840" y="120" width="56" height="110" rx="8" fill="var(--chip)" stroke="var(--line)" stroke-width="2"/><rect x="900" y="120" width="56" height="110" rx="8" fill="var(--accent)"/><rect x="960" y="120" width="116" height="110" rx="8" fill="var(--chip)" stroke="var(--line)" stroke-width="2"/><rect x="1080" y="120" width="56" height="110" rx="8" fill="var(--accent)"/><text x="60" y="274" text-anchor="start" font-family="var(--font-sans)" font-size="20" font-weight="600" fill="var(--muted)">start</text><text x="1140" y="274" text-anchor="end" font-family="var(--font-sans)" font-size="20" font-weight="600" fill="var(--muted)">end</text><rect x="210" y="314" width="34" height="34" rx="8" fill="var(--accent)"/><text x="260" y="340" text-anchor="start" font-family="var(--font-sans)" font-size="30" font-weight="700" fill="var(--ink)">you build</text><rect x="670" y="314" width="34" height="34" rx="8" fill="var(--chip)" stroke="var(--line)" stroke-width="2"/><text x="720" y="340" text-anchor="start" font-family="var(--font-sans)" font-size="30" font-weight="600" fill="var(--muted)">I talk</text></svg></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en">Short talks, long builds. <b>The blue is you.</b></span><span class="ja" lang="ja">話は短く、制作は長く。<b>青い部分が、あなた。</b></span></span></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>3 / 37</span></div></section>
+<section class="slide" data-sid="agenda" data-type="agenda"><div class="kicker"><span class="i18n"><span class="en" lang="en">Today</span><span class="ja" lang="ja">本日の内容</span></span></div><div class="agenda"><div class="item"><div class="n">1</div><div><span class="i18n"><span class="en" lang="en">Teach a model to see</span><span class="ja" lang="ja">モデルに見ることを教える</span></span></div></div><div class="item"><div class="n">2</div><div><span class="i18n"><span class="en" lang="en">Make it see better</span><span class="ja" lang="ja">もっとよく見えるようにする</span></span></div></div><div class="item"><div class="n">3</div><div><span class="i18n"><span class="en" lang="en">Add noise</span><span class="ja" lang="ja">ノイズを加える</span></span></div></div><div class="item"><div class="n">4</div><div><span class="i18n"><span class="en" lang="en">Journal entry</span><span class="ja" lang="ja">ジャーナルの記入</span></span></div></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>4 / 37</span></div></section>
+<section class="slide" data-sid="part-teach-a-model-to-see" data-type="divider"><div class="divider" style="margin:auto 0"><div class="no"><span class="i18n"><span class="en" lang="en">Part 1</span><span class="ja" lang="ja">第1部</span></span></div><h1><span class="i18n"><span class="en" lang="en">Teach a model to see</span><span class="ja" lang="ja">モデルに見ることを教える</span></span></h1><div class="promise"><span class="i18n"><span class="en" lang="en">In twenty minutes you will have taught a computer to tell three hand shapes apart &mdash; without writing a single rule.</span><span class="ja" lang="ja">20分後には、三つの手の形を見分けることをコンピュータに教えている &mdash; ルールを一つも書かずに。</span></span></div><div class="spine"><div class="seg active"><span class="sn">1</span><span class="i18n"><span class="en" lang="en">Teach a model to see</span><span class="ja" lang="ja">モデルに見ることを教える</span></span></div><div class="seg"><span class="sn">2</span><span class="i18n"><span class="en" lang="en">Make it see better</span><span class="ja" lang="ja">もっとよく見えるようにする</span></span></div><div class="seg"><span class="sn">3</span><span class="i18n"><span class="en" lang="en">Add noise</span><span class="ja" lang="ja">ノイズを加える</span></span></div><div class="seg"><span class="sn">4</span><span class="i18n"><span class="en" lang="en">Journal entry</span><span class="ja" lang="ja">ジャーナルの記入</span></span></div></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>5 / 37</span></div></section>
+<section class="slide" data-sid="teachable-machine" data-type="statement"><div class="center" style="margin:auto"><div class="kicker"><span class="i18n"><span class="en" lang="en">The tool for today</span><span class="ja" lang="ja">今日使う道具</span></span></div><div class="big-statement">Teachable Machine</div><div class="sub"><span class="i18n"><span class="en" lang="en">Free, from Google. It runs in your browser. You show it examples, and it learns to tell them apart.<br><br><span style="font-family:var(--font-mono)">teachablemachine.withgoogle.com</span><a class="extlink" href="https://teachablemachine.withgoogle.com/" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="open teachablemachine.withgoogle.com in a new tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h5"/><path d="M14 4h6v6"/><path d="M20 4l-8.5 8.5"/></svg></a></span><span class="ja" lang="ja">無料で、Google 製。ブラウザの中で動く。例を見せると、それらを見分けることを学ぶ。<br><br><span style="font-family:var(--font-mono)">teachablemachine.withgoogle.com</span><a class="extlink" href="https://teachablemachine.withgoogle.com/" target="_blank" rel="noopener" onclick="event.stopPropagation()" aria-label="open teachablemachine.withgoogle.com in a new tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h5"/><path d="M14 4h6v6"/><path d="M20 4l-8.5 8.5"/></svg></a></span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>6 / 37</span></div></section>
+<section class="slide demo" data-sid="what-will-it-get-wrong" data-type="demo"><div class="center" style="margin:auto"><div class="kicker"><span class="i18n"><span class="en" lang="en">Live &middot; watch me train one</span><span class="ja" lang="ja">ライブ &middot; 一つ学習させてみせる</span></span></div><div class="big-statement"><span class="i18n"><span class="en" lang="en">What will it get wrong?</span><span class="ja" lang="ja">何を間違えると思うか？</span></span></div><div class="sub"><span class="i18n"><span class="en" lang="en">Tell the person next to you. Not how it works &mdash; <b>where it breaks</b>.</span><span class="ja" lang="ja">隣の人に言ってみる。どう動くかではなく &mdash; <b>どこで壊れるか</b>。</span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>7 / 37</span></div></section>
+<section class="slide" data-sid="why-it-always-answers" data-type="raw"><div class="kicker"><span class="i18n"><span class="en" lang="en">Why it always answers</span><span class="ja" lang="ja">なぜいつも答えるのか</span></span></div><div style="display:flex;justify-content:center;margin:auto 0"><svg viewBox="0 0 1200 470" style="width:94vw;max-height:58vh" role="img"><text x="232" y="92" text-anchor="end" font-family="var(--font-sans)" font-size="25" font-weight="700" fill="var(--accent)">paper</text><rect x="260" y="50" width="740" height="68" rx="10" fill="none" stroke="var(--line)" stroke-width="3"/><rect x="260" y="50" width="458.8" height="68" rx="10" fill="var(--accent)" stroke="none" stroke-width="3"/><text x="1026" y="93" text-anchor="start" font-family="var(--font-mono)" font-size="28" font-weight="800" fill="var(--accent)">62%</text><text x="232" y="188" text-anchor="end" font-family="var(--font-sans)" font-size="25" font-weight="700" fill="var(--ink)">scissors</text><rect x="260" y="146" width="740" height="68" rx="10" fill="none" stroke="var(--line)" stroke-width="3"/><rect x="260" y="146" width="229.4" height="68" rx="10" fill="var(--muted)" stroke="none" stroke-width="3"/><text x="1026" y="189" text-anchor="start" font-family="var(--font-mono)" font-size="28" font-weight="800" fill="var(--muted)">31%</text><text x="232" y="284" text-anchor="end" font-family="var(--font-sans)" font-size="25" font-weight="700" fill="var(--ink)">rock</text><rect x="260" y="242" width="740" height="68" rx="10" fill="none" stroke="var(--line)" stroke-width="3"/><rect x="260" y="242" width="51.8" height="68" rx="10" fill="var(--muted)" stroke="none" stroke-width="3"/><text x="1026" y="285" text-anchor="start" font-family="var(--font-mono)" font-size="28" font-weight="800" fill="var(--muted)">7%</text><line x1="260" y1="338" x2="1000" y2="338" stroke="var(--line)" stroke-width="3"/><text x="630" y="394" text-anchor="middle" font-family="var(--font-mono)" font-size="38" font-weight="800" fill="var(--accent)">62 + 31 + 7 = 100</text><text x="630" y="442" text-anchor="middle" font-family="var(--font-sans)" font-size="22" font-weight="500" fill="var(--muted)">an empty frame still gets an answer</text></svg></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>8 / 37</span></div></section>
+<section class="slide" data-sid="four-words-and-you-have-already-seen" data-type="table"><h1><span class="i18n"><span class="en" lang="en">Four words &mdash; and you have already seen all four</span><span class="ja" lang="ja">四つの語 &mdash; 四つとも、もう見ている</span></span></h1><table class="kv"><tbody><tr><td class="k"><span class="i18n"><span class="en" lang="en">label</span><span class="ja" lang="ja">ラベル</span></span></td><td><span class="i18n"><span class="en" lang="en">the name you give a group</span><span class="ja" lang="ja">グループにつける名前</span></span></td></tr><tr><td class="k"><span class="i18n"><span class="en" lang="en">training data</span><span class="ja" lang="ja">学習データ</span></span></td><td><span class="i18n"><span class="en" lang="en">the examples you showed it</span><span class="ja" lang="ja">見せた例</span></span></td></tr><tr><td class="k"><span class="i18n"><span class="en" lang="en">prediction</span><span class="ja" lang="ja">予測</span></span></td><td><span class="i18n"><span class="en" lang="en">its guess</span><span class="ja" lang="ja">その推測</span></span></td></tr><tr><td class="k"><span class="i18n"><span class="en" lang="en">confidence</span><span class="ja" lang="ja">確信度</span></span></td><td><span class="i18n"><span class="en" lang="en">how sure it <i>says</i> it is, out of 100</span><span class="ja" lang="ja">どれだけ確かだと<i>言っている</i>か、100点満点で</span></span></td></tr></tbody></table><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>9 / 37</span></div></section>
+<section class="slide" data-sid="i-never-told-it-what-a-fist" data-type="statement"><div class="center" style="margin:auto"><div class="kicker"><span class="i18n"><span class="en" lang="en">Nobody wrote the rules</span><span class="ja" lang="ja">ルールは誰も書いていない</span></span></div><div class="big-statement"><span class="i18n"><span class="en" lang="en">I never told it what a fist looks like.</span><span class="ja" lang="ja">握りこぶしがどんな見た目かは、一度も教えていない。</span></span></div><div class="sub"><span class="i18n"><span class="en" lang="en">No <code>if</code> for &ldquo;closed.&rdquo; No <code>if</code> for &ldquo;two fingers.&rdquo; Only examples.</span><span class="ja" lang="ja">&ldquo;握っている&rdquo;の <code>if</code> もない。&ldquo;指が2本&rdquo;の <code>if</code> もない。あるのは例だけ。</span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>10 / 37</span></div></section>
+<section class="slide" data-sid="so-why-is-two-minutes-enough" data-type="raw"><div class="kicker"><span class="i18n"><span class="en" lang="en">So why is two minutes enough?</span><span class="ja" lang="ja">では、なぜ2分で足りるのか？</span></span></div><div style="display:flex;justify-content:center;margin:auto 0"><svg viewBox="0 0 1200 420" style="width:94vw;max-height:54vh" role="img"><text x="266" y="88" text-anchor="end" font-family="var(--font-sans)" font-size="24" font-weight="700" fill="var(--ink)">Google, before today</text><rect x="290" y="52" width="750" height="74" rx="10" fill="var(--muted)" stroke="none" stroke-width="3"/><text x="665" y="98" text-anchor="middle" font-family="var(--font-sans)" font-size="23" font-weight="700" fill="var(--panel)">over a million photographs &mdash; edges, shapes, textures</text><text x="1060" y="96" text-anchor="start" font-family="var(--font-sans)" font-size="20" font-weight="600" fill="var(--muted)">frozen</text><text x="266" y="232" text-anchor="end" font-family="var(--font-sans)" font-size="24" font-weight="700" fill="var(--accent)">You, this afternoon</text><rect x="290" y="196" width="750" height="74" rx="10" fill="none" stroke="var(--line)" stroke-width="3"/><rect x="290" y="196" width="26" height="74" rx="10" fill="var(--accent)" stroke="none" stroke-width="3"/><text x="336" y="242" text-anchor="start" font-family="var(--font-mono)" font-size="24" font-weight="800" fill="var(--accent)">~30 of each</text><text x="780" y="226" text-anchor="middle" font-family="var(--font-sans)" font-size="21" font-weight="500" fill="var(--muted)">which of <tspan font-weight="800">your three names</tspan></text><text x="780" y="254" text-anchor="middle" font-family="var(--font-sans)" font-size="21" font-weight="500" fill="var(--muted)">goes with what it already sees</text><text x="600" y="346" text-anchor="middle" font-family="var(--font-sans)" font-size="30" font-weight="800" fill="var(--ink)">Your examples did not teach it to see.</text><text x="600" y="390" text-anchor="middle" font-family="var(--font-sans)" font-size="24" font-weight="600" fill="var(--accent)">It learned to see from ImageNet's photos. It learned your three names from you.</text></svg></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>11 / 37</span></div></section>
+<section class="slide" data-sid="before-you-build-where-does-your-data" data-type="checklist"><h1><span class="i18n"><span class="en" lang="en">Before you build: where does your data go?</span><span class="ja" lang="ja">つくる前に：データはどこへ行くのか？</span></span></h1><ul class="check-list"><li><span class="i18n"><span class="en" lang="en">the pictures <b>stay on your laptop</b> &mdash; training runs inside your browser</span><span class="ja" lang="ja">画像は<b>自分のノートPCの中にとどまる</b> &mdash; 学習はブラウザの中で動く</span></span></li><li><span class="i18n"><span class="en" lang="en">at the end you upload <b>the model, not the pictures</b> &mdash; what it learned, behind a link</span><span class="ja" lang="ja">最後にアップロードするのは<b>画像ではなく、モデル</b> &mdash; 学んだ中身が、リンクの先に置かれる</span></span></li><li><span class="i18n"><span class="en" lang="en"><b>ask first</b> before you record somebody else's hands &mdash; you will need to, twice, today</span><span class="ja" lang="ja">ほかの人の手を録画する前に<b>まず聞く</b> &mdash; 今日、2回その必要がある</span></span></li></ul><div class="sub"><span class="i18n"><span class="en" lang="en">Ask this of every service you add to your product, all term: <b>what leaves this machine, and when?</b></span><span class="ja" lang="ja">学期を通して、プロダクトにサービスを加えるたびに、これを問う：<b>何が、いつ、このマシンの外に出るのか？</b></span></span></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>12 / 37</span></div></section>
+<section class="slide" data-sid="two-stations-everybody-ends-with-a-working" data-type="cards"><h1 style="text-align:center;margin-bottom:1vmin"><span class="i18n"><span class="en" lang="en">Two stations. Everybody ends with a working model.</span><span class="ja" lang="ja">二つのステーション。全員が、動くモデルを持って終わる。</span></span></h1><div class="cards"><div class="card"><span class="ico">1</span><span class="i18n"><span class="en" lang="en">Three labels</span><span class="ja" lang="ja">三つのラベル</span></span></div><div class="card"><span class="ico">2</span><span class="i18n"><span class="en" lang="en">Train &mdash; empty background</span><span class="ja" lang="ja">学習させる &mdash; 何もない背景で</span></span></div></div><div class="probe"><span class="i18n"><span class="en" lang="en">Stuck? Put your hand up.</span><span class="ja" lang="ja">詰まった？ 手を挙げて。</span></span> <span class="q"><span class="i18n"><span class="en" lang="en">Chrome, please.</span><span class="ja" lang="ja">Chrome でお願いします。</span></span></span></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>13 / 37</span></div></section>
+<section class="slide" data-sid="three-labels" data-type="statement"><div class="center" style="margin:auto"><div class="kicker"><span class="i18n"><span class="en" lang="en">Station 1</span><span class="ja" lang="ja">ステーション1</span></span></div><div class="big-statement"><span class="i18n"><span class="en" lang="en">Three labels.</span><span class="ja" lang="ja">三つのラベル。</span></span></div><div class="sub"><span class="i18n"><span class="en" lang="en">The tool opens with two groups. Press <b>Add a class</b> for the third, then rename all three: <b>rock</b>, <b>paper</b>, <b>scissors</b>.<br><br><span style="color:var(--muted)">Rename them before you record anything, or you will not know which pile is which.</span></span><span class="ja" lang="ja">ツールは二つのグループで始まる。<b>Add a class</b> を押して三つめをつくり、三つとも名前を変える：<b>rock</b>、<b>paper</b>、<b>scissors</b>。<br><br><span style="color:var(--muted)">何かを録画する前に名前を変えること。でないと、どの山がどれか分からなくなる。</span></span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>14 / 37</span></div></section>
+<section class="slide" data-sid="train-against-nothing" data-type="statement"><div class="center" style="margin:auto"><div class="kicker"><span class="i18n"><span class="en" lang="en">Station 2</span><span class="ja" lang="ja">ステーション2</span></span></div><div class="big-statement"><span class="i18n"><span class="en" lang="en">Train &mdash; against nothing.</span><span class="ja" lang="ja">学習させる &mdash; 何もない背景で。</span></span></div><div class="sub"><span class="i18n"><span class="en" lang="en"><b>Empty background: your hand, and nothing else in the frame.</b><br><br>Move your hand while it records &mdash; turn it, tilt it, closer, further. About <b>30 examples each</b>. Press Train.</span><span class="ja" lang="ja"><b>何もない背景：画面に入るのは自分の手だけ、ほかには何もなし。</b><br><br>録画しているあいだ、手を動かす &mdash; 回す、傾ける、近づける、遠ざける。各<b>30例ほど</b>。Train を押す。</span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>15 / 37</span></div></section>
+<section class="slide" data-sid="you-taught-a-computer-to-tell-three" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">1 &mdash; check the promise</span><span class="ja" lang="ja">1 &mdash; 約束を確かめる</span></span></div><h1><span class="i18n"><span class="en" lang="en">You taught a computer to tell three hand shapes apart.</span><span class="ja" lang="ja">三つの手の形を見分けることを、コンピュータに教えた。</span></span></h1><ul class="big"><li class="check"><span class="i18n"><span class="en" lang="en">Three labels &mdash; you named them</span><span class="ja" lang="ja">三つのラベル &mdash; 自分で名前をつけた</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">Training data &mdash; from your own hands</span><span class="ja" lang="ja">学習データ &mdash; 自分の手から</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">A prediction, with a confidence</span><span class="ja" lang="ja">予測と、その確信度</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en"><b>Nobody wrote the rules</b></span><span class="ja" lang="ja"><b>ルールは誰も書いていない</b></span></span></li></ul><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>16 / 37</span></div></section>
+<section class="slide" data-sid="part-make-it-see-better" data-type="divider"><div class="divider" style="margin:auto 0"><div class="no"><span class="i18n"><span class="en" lang="en">Part 2</span><span class="ja" lang="ja">第2部</span></span></div><h1><span class="i18n"><span class="en" lang="en">Make it see better</span><span class="ja" lang="ja">もっとよく見えるようにする</span></span></h1><div class="promise"><span class="i18n"><span class="en" lang="en">You will make it see better twice &mdash; and then the whole room will build one together, and test it on people it never saw.</span><span class="ja" lang="ja">二回、もっとよく見えるようにする &mdash; そのあと教室全体で一つをいっしょにつくり、一度も見たことのない人でテストする。</span></span></div><div class="spine"><div class="seg"><span class="sn">1</span><span class="i18n"><span class="en" lang="en">Teach a model to see</span><span class="ja" lang="ja">モデルに見ることを教える</span></span></div><div class="seg active"><span class="sn">2</span><span class="i18n"><span class="en" lang="en">Make it see better</span><span class="ja" lang="ja">もっとよく見えるようにする</span></span></div><div class="seg"><span class="sn">3</span><span class="i18n"><span class="en" lang="en">Add noise</span><span class="ja" lang="ja">ノイズを加える</span></span></div><div class="seg"><span class="sn">4</span><span class="i18n"><span class="en" lang="en">Journal entry</span><span class="ja" lang="ja">ジャーナルの記入</span></span></div></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>17 / 37</span></div></section>
+<section class="slide demo" data-sid="4-out-of-4-100" data-type="demo"><div class="center" style="margin:auto"><div class="kicker"><span class="i18n"><span class="en" lang="en">Live &middot; let me test my model properly</span><span class="ja" lang="ja">ライブ &middot; きちんとテストしてみます</span></span></div><div class="big-statement"><span class="i18n"><span class="en" lang="en">4 out of 4. 100%.</span><span class="ja" lang="ja">4問中4問。100%。</span></span></div><div class="sub"><span class="i18n"><span class="en" lang="en"><b>Do you believe me?</b></span><span class="ja" lang="ja"><b>信じますか？</b></span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>18 / 37</span></div></section>
+<section class="slide" data-sid="if-you-choose-the-test-you-are" data-type="statement"><div class="center" style="margin:auto"><div class="big-statement"><span class="i18n"><span class="en" lang="en">If you choose the test, you are testing yourself.</span><span class="ja" lang="ja">テストを自分で選ぶなら、テストしているのは自分自身だ。</span></span></div><div class="sub"><span class="i18n"><span class="en" lang="en"><b>4 / 4</b> on the four I chose. <b>10 / 12</b> on twelve I did not.<br><b>Same hands. Same background.</b><br><br><span style="color:var(--muted)">So from now on, you test it on hands it has never seen.</span></span><span class="ja" lang="ja">自分で選んだ四つでは <b>4 / 4</b>。選ばなかった十二では <b>10 / 12</b>。<br><b>同じ手。同じ背景。</b><br><br><span style="color:var(--muted)">だからここからは、見たことのない手でテストする。</span></span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>19 / 37</span></div></section>
+<section class="slide" data-sid="try-it-on-hands-it-has-never" data-type="statement"><div class="center" style="margin:auto"><div class="kicker"><span class="i18n"><span class="en" lang="en">Round 1 &middot; your partner's hands</span><span class="ja" lang="ja">ラウンド1 &middot; 相手の手</span></span></div><div class="big-statement"><span class="i18n"><span class="en" lang="en">Try it on hands it has never seen.</span><span class="ja" lang="ja">見たことのない手で試す。</span></span></div><div class="sub"><span class="i18n"><span class="en" lang="en">Swap chairs, not laptops. Same blank background, same camera &mdash; <b>only the hands change</b>.<br><br><span style="color:var(--muted)">Before you start: will it work? Hands up.</span></span><span class="ja" lang="ja">ノートPCではなく、椅子を交換する。同じ何もない背景、同じカメラ &mdash; <b>変わるのは手だけ</b>。<br><br><span style="color:var(--muted)">始める前に：うまくいく？ 手を挙げて。</span></span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>20 / 37</span></div></section>
+<section class="slide" data-sid="it-did-not-learn-rock-it-learned" data-type="statement"><div class="center" style="margin:auto"><div class="kicker"><span class="i18n"><span class="en" lang="en">Nothing about the model changed</span><span class="ja" lang="ja">モデルは何も変わっていない</span></span></div><div class="big-statement"><span class="i18n"><span class="en" lang="en">It did not learn &ldquo;rock.&rdquo;<br>It learned <b>your</b> rock.</span><span class="ja" lang="ja">&ldquo;グー&rdquo;を覚えたのではない。<br><b>あなたの</b>グーを覚えた。</span></span></div><div class="sub"><span class="i18n"><span class="en" lang="en">Same blank wall, same camera. Only the hands were new.<br><br><span style="color:var(--muted)">This has a name: <b>distribution shift</b>.</span></span><span class="ja" lang="ja">同じ何もない壁、同じカメラ。新しかったのは手だけ。<br><br><span style="color:var(--muted)">これには名前がある：<b>分布シフト</b>。</span></span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>21 / 37</span></div></section>
+<section class="slide" data-sid="give-it-a-second-pair-of-hands" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">Round 2 &middot; add your partner</span><span class="ja" lang="ja">ラウンド2 &middot; 相手を加える</span></span></div><h1><span class="i18n"><span class="en" lang="en">Give it a second pair of hands.</span><span class="ja" lang="ja">二組めの手を見せる。</span></span></h1><ol class="big num"><li><span class="i18n"><span class="en" lang="en">Your partner makes each shape while you record &mdash; <b>into the labels you already have</b>, not new ones</span><span class="ja" lang="ja">あなたが録画するあいだ、相手がそれぞれの形をつくる &mdash; 新しいラベルではなく、<b>すでにあるラベルに</b></span></span></li><li><span class="i18n"><span class="en" lang="en">Press <b>Train</b></span><span class="ja" lang="ja"><b>Train</b> を押す</span></span></li><li><span class="i18n"><span class="en" lang="en">Your partner tries it again. <b>Does it see better?</b></span><span class="ja" lang="ja">相手がもう一度試す。<b>前よりよく見えるか？</b></span></span></li></ol><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>22 / 37</span></div></section>
+<section class="slide" data-sid="now-somebody-it-has-never-met" data-type="statement"><div class="center" style="margin:auto"><div class="kicker"><span class="i18n"><span class="en" lang="en">Round 3 &middot; a third person</span><span class="ja" lang="ja">ラウンド3 &middot; 三人め</span></span></div><div class="big-statement"><span class="i18n"><span class="en" lang="en">Now somebody it has never met.</span><span class="ja" lang="ja">今度は、一度も会ったことのない人。</span></span></div><div class="sub"><span class="i18n"><span class="en" lang="en">Find somebody who is not your partner. Same blank background.<br><br><span style="color:var(--muted)">Two pairs of hands in. <b>Did it get better at hands &mdash; or only at your partner's?</b></span></span><span class="ja" lang="ja">相手ではない誰かを見つける。同じ何もない背景で。<br><br><span style="color:var(--muted)">入れた手は二組。<b>手全般に強くなったのか &mdash; それとも、相手の手にだけか？</b></span></span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>23 / 37</span></div></section>
+<section class="slide" data-sid="eight-of-us-train-it-two-of" data-type="statement"><div class="center" style="margin:auto"><div class="kicker"><span class="i18n"><span class="en" lang="en">Round 4 &middot; the room's model</span><span class="ja" lang="ja">ラウンド4 &middot; 教室のモデル</span></span></div><div class="big-statement"><span class="i18n"><span class="en" lang="en">Eight of us train it.<br>Two of us test it.</span><span class="ja" lang="ja">8人で学習させる。<br>2人でテストする。</span></span></div><div class="sub"><span class="i18n"><span class="en" lang="en">One model on this machine. Eight people give it their hands. Two people stay in their seats and give it nothing &mdash; <b>they are the test</b>.</span><span class="ja" lang="ja">このマシンに、モデルが一つ。8人が自分の手を見せる。2人は席に残り、何も見せない &mdash; <b>その2人がテスト</b>。</span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>24 / 37</span></div></section>
+<section class="slide" data-sid="how-accurate-did-it-become" data-type="statement"><div class="center" style="margin:auto"><div class="kicker"><span class="i18n"><span class="en" lang="en">The two it never saw</span><span class="ja" lang="ja">一度も見ていない2人</span></span></div><div class="big-statement"><span class="i18n"><span class="en" lang="en">How accurate did it become?</span><span class="ja" lang="ja">どれだけ正確になったか？</span></span></div><div class="sub"><span class="i18n"><span class="en" lang="en">Each of them makes the three shapes twice. We count out loud.<br><b>right &divide; tried = accuracy</b><br><br><span style="color:var(--muted)">The two it never saw are the <b>check set</b>. You will also hear <i>test set</i>.</span></span><span class="ja" lang="ja">二人がそれぞれ、三つの形を2回ずつつくる。声に出して数える。<br><b>正解 &divide; 試した数 = 正解率</b><br><br><span style="color:var(--muted)">一度も見ていない2人が<b>チェックセット</b>。<i>テストセット</i>という呼び方も耳にする。</span></span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>25 / 37</span></div></section>
+<section class="slide" data-sid="it-sees-better-and-you-know-why" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">2 &mdash; check the promise</span><span class="ja" lang="ja">2 &mdash; 約束を確かめる</span></span></div><h1><span class="i18n"><span class="en" lang="en">It sees better, and you know why.</span><span class="ja" lang="ja">前よりよく見える。そして、その理由も分かっている。</span></span></h1><ul class="big"><li class="check"><span class="i18n"><span class="en" lang="en">It learned <b>your</b> rock first &mdash; that is distribution shift</span><span class="ja" lang="ja">最初は<b>あなたの</b>グーを覚えた &mdash; それが分布シフト</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">More people's hands made it see better</span><span class="ja" lang="ja">より多くの人の手で、よく見えるようになった</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">The room's model, tested on two people it never saw</span><span class="ja" lang="ja">教室のモデルを、一度も見ていない2人でテストした</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">One number: <b>accuracy</b></span><span class="ja" lang="ja">数字は一つ：<b>正解率</b></span></span></li></ul><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>26 / 37</span></div></section>
+<section class="slide" data-sid="part-add-noise" data-type="divider"><div class="divider" style="margin:auto 0"><div class="no"><span class="i18n"><span class="en" lang="en">Part 3</span><span class="ja" lang="ja">第3部</span></span></div><h1><span class="i18n"><span class="en" lang="en">Add noise</span><span class="ja" lang="ja">ノイズを加える</span></span></h1><div class="promise"><span class="i18n"><span class="en" lang="en">What happens to the accuracy when something else is in the picture &mdash; and one way to manage it.</span><span class="ja" lang="ja">ほかのものが写り込むと、正解率はどうなるか &mdash; そして、それに対処する方法を一つ。</span></span></div><div class="spine"><div class="seg"><span class="sn">1</span><span class="i18n"><span class="en" lang="en">Teach a model to see</span><span class="ja" lang="ja">モデルに見ることを教える</span></span></div><div class="seg"><span class="sn">2</span><span class="i18n"><span class="en" lang="en">Make it see better</span><span class="ja" lang="ja">もっとよく見えるようにする</span></span></div><div class="seg active"><span class="sn">3</span><span class="i18n"><span class="en" lang="en">Add noise</span><span class="ja" lang="ja">ノイズを加える</span></span></div><div class="seg"><span class="sn">4</span><span class="i18n"><span class="en" lang="en">Journal entry</span><span class="ja" lang="ja">ジャーナルの記入</span></span></div></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>27 / 37</span></div></section>
+<section class="slide" data-sid="add-noise" data-type="statement"><div class="center" style="margin:auto"><div class="big-statement"><span class="i18n"><span class="en" lang="en">Add noise</span><span class="ja" lang="ja">ノイズを加える</span></span></div><div class="sub"><span class="i18n"><span class="en" lang="en">What happens if I'm in the picture?</span><span class="ja" lang="ja">私が写り込んだら、どうなる？</span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>28 / 37</span></div></section>
+<section class="slide" data-sid="adding-a-fourth-category" data-type="statement"><div class="center" style="margin:auto"><div class="big-statement"><span class="i18n"><span class="en" lang="en">Adding a fourth category</span><span class="ja" lang="ja">四つめのカテゴリを加える</span></span></div><div class="sub"><span class="i18n"><span class="en" lang="en">Having a <b>null case</b> is useful to account for noise &mdash; it gives the model something to subtract from.</span><span class="ja" lang="ja"><b>ヌルケース</b>があると、ノイズを考慮に入れるのに役立つ &mdash; モデルに、そこから差し引ける何かを与える。</span></span></div><div class="credit">Teachable Machine&rsquo;s own sound projects start with one &mdash; &ldquo;Background Noise&rdquo;, which cannot be deleted</div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>29 / 37</span></div></section>
+<section class="slide" data-sid="two-ways-to-be-right-two-ways" data-type="raw"><div class="kicker"><span class="i18n"><span class="en" lang="en">Two ways to be right, two ways to be wrong</span><span class="ja" lang="ja">当たり方は二通り、外れ方も二通り</span></span></div><div style="display:flex;justify-content:center;margin:auto 0"><svg viewBox="0 0 1200 420" style="width:94vw;max-height:58vh" role="img"><text x="600" y="30" text-anchor="middle" font-family="var(--font-sans)" font-size="24" font-weight="500" fill="var(--ink)">standing behind one label: <tspan font-weight="800" fill="var(--accent)">paper</tspan></text><text x="520" y="80" text-anchor="middle" font-family="var(--font-sans)" font-size="21" font-weight="700" fill="var(--muted)">it said paper</text><text x="900" y="80" text-anchor="middle" font-family="var(--font-sans)" font-size="21" font-weight="700" fill="var(--muted)">it said something else</text><text x="310" y="168" text-anchor="end" font-family="var(--font-sans)" font-size="21" font-weight="700" fill="var(--muted)">it was paper</text><text x="310" y="296" text-anchor="end" font-family="var(--font-sans)" font-size="21" font-weight="700" fill="var(--muted)">it was not paper</text><rect x="330" y="96" width="370" height="118" rx="14" fill="none" stroke="var(--accent)" stroke-width="4"/><text x="515" y="136" text-anchor="middle" font-family="var(--font-mono)" font-size="25" font-weight="800" fill="var(--accent)">true positive</text><text x="515" y="170" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="500" fill="var(--muted)">right: it was, and it said so</text><rect x="710" y="96" width="370" height="118" rx="14" fill="none" stroke="var(--line)" stroke-width="3" stroke-dasharray="9 8"/><text x="895" y="136" text-anchor="middle" font-family="var(--font-mono)" font-size="25" font-weight="800" fill="var(--ink)">false negative</text><text x="895" y="170" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="500" fill="var(--muted)">wrong: a miss, it was there</text><rect x="330" y="224" width="370" height="118" rx="14" fill="none" stroke="var(--line)" stroke-width="3" stroke-dasharray="9 8"/><text x="515" y="264" text-anchor="middle" font-family="var(--font-mono)" font-size="25" font-weight="800" fill="var(--ink)">false positive</text><text x="515" y="298" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="500" fill="var(--muted)">wrong: it said yes to a no</text><text x="515" y="326" text-anchor="middle" font-family="var(--font-sans)" font-size="18" font-weight="700" fill="var(--ink)">you, sitting there &rarr; &ldquo;paper&rdquo;</text><rect x="710" y="224" width="370" height="118" rx="14" fill="none" stroke="var(--accent)" stroke-width="4"/><text x="895" y="264" text-anchor="middle" font-family="var(--font-mono)" font-size="25" font-weight="800" fill="var(--accent)">true negative</text><text x="895" y="298" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="500" fill="var(--muted)">right: it was not, and it said not</text><text x="600" y="404" text-anchor="middle" font-family="var(--font-sans)" font-size="24" font-weight="500" fill="var(--ink)">Two ways to be right. Two ways to be wrong. <tspan font-weight="800">Pick a label first.</tspan></text></svg></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>30 / 37</span></div></section>
+<section class="slide" data-sid="adding-noise-results-in-lower-accuracy-but" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">3 &mdash; check the promise</span><span class="ja" lang="ja">3 &mdash; 約束を確かめる</span></span></div><h1><span class="i18n"><span class="en" lang="en">Adding noise results in lower accuracy &mdash; but there are some ways to manage noise.</span><span class="ja" lang="ja">ノイズを加えると、正解率は下がる &mdash; でも、ノイズに対処する方法はいくつかある。</span></span></h1><ul class="big"><li class="check"><span class="i18n"><span class="en" lang="en">A person in the picture lowered the accuracy</span><span class="ja" lang="ja">人が写り込むと、正解率が下がった</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">More hands would not have fixed it</span><span class="ja" lang="ja">手を増やしても、直らなかったはず</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">A null case &mdash; <b>None</b> &mdash; is one way to manage it</span><span class="ja" lang="ja">ヌルケース &mdash; <b>None</b> &mdash; は、それに対処する方法の一つ</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">Four squares, for any one label</span><span class="ja" lang="ja">どのラベルでも、一つにつき四つのマス</span></span></li></ul><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>31 / 37</span></div></section>
+<section class="slide" data-sid="two-kinds-of-software" data-type="raw" data-show="1"><h1><span class="i18n"><span class="en" lang="en">Two kinds of software</span><span class="ja" lang="ja">2種類のソフトウェア</span></span></h1><div style="display:flex;gap:5vmin;width:100%;align-items:flex-start;margin-top:3vmin"><div style="flex:1 1 0;min-width:0"><div style="font-family:var(--font-mono);font-size:2.4vmin;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:1.6vmin">Deterministic &mdash; the software you build</div><div style="padding:1.1vmin 0;border-top:.2vmin solid var(--line);font-size:2.8vmin">Same input &rarr; same output</div><div style="padding:1.1vmin 0;border-top:.2vmin solid var(--line);font-size:2.8vmin">Exact</div><div style="padding:1.1vmin 0;border-top:.2vmin solid var(--line);font-size:2.8vmin">A check, once passed, <b>stays passed</b></div><div style="padding:1.1vmin 0;border-top:.2vmin solid var(--line);font-size:2.8vmin;color:var(--ink)"><b>Rules someone wrote</b></div></div><div style="flex:1 1 0;min-width:0"><div style="font-family:var(--font-mono);font-size:2.4vmin;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:1.6vmin">Probabilistic &mdash; the assistant, and the one you built</div><div style="padding:1.1vmin 0;border-top:.2vmin solid var(--line);font-size:2.8vmin">Same input &rarr; the output can change</div><div style="padding:1.1vmin 0;border-top:.2vmin solid var(--line);font-size:2.8vmin">Likely</div><div style="padding:1.1vmin 0;border-top:.2vmin solid var(--line);font-size:2.8vmin">A score that can <b>drift</b></div><div style="padding:1.1vmin 0;border-top:.2vmin solid var(--line);font-size:2.8vmin;color:var(--ink)"><b>Patterns learned from examples</b></div></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>32 / 37</span></div></section>
+<section class="slide" data-sid="three-questions-on-the-way-out" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">You must be able to explain and defend your own work</span><span class="ja" lang="ja">自分の成果を説明し、守れなければならない</span></span></div><h1><span class="i18n"><span class="en" lang="en">Three questions, on the way out.</span><span class="ja" lang="ja">帰り際に、三つの問い。</span></span></h1><ul class="big"><li><span class="i18n"><span class="en" lang="en">What are your three labels, and how many examples each?</span><span class="ja" lang="ja">三つのラベルは何で、それぞれ何例か？</span></span></li><li><span class="i18n"><span class="en" lang="en">Show me one thing it gets wrong &mdash; and tell me what it confused</span><span class="ja" lang="ja">間違えるものを一つ見せて &mdash; 何と取り違えたかを言う</span></span></li><li><span class="i18n"><span class="en" lang="en">It saw better twice, then noise lowered it. <b>What helped each time?</b></span><span class="ja" lang="ja">二回よく見えるようになり、そのあとノイズで下がった。<b>それぞれ、何が助けになったか？</b></span></span></li></ul><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>33 / 37</span></div></section>
+<section class="slide close" data-sid="whether-software-is-deterministic-or-probabilistic-there" data-type="close"><div class="center" style="margin:auto"><div class="tag"><span class="i18n"><span class="en" lang="en">Anyone can build.</span><span class="ja" lang="ja">誰でもつくれる。</span></span></div><div class="big-statement" style="margin-top:3vmin"><span class="i18n"><span class="en" lang="en">Whether software is deterministic or probabilistic, there are tools to guide its output.</span><span class="ja" lang="ja">ソフトウェアが決定論的でも確率的でも、その出力を導く道具はある。</span></span></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>34 / 37</span></div></section>
+<section class="slide" data-sid="part-journal-entry" data-type="divider"><div class="divider" style="margin:auto 0"><div class="no"><span class="i18n"><span class="en" lang="en">Part 4</span><span class="ja" lang="ja">第4部</span></span></div><h1><span class="i18n"><span class="en" lang="en">Journal entry</span><span class="ja" lang="ja">ジャーナルの記入</span></span></h1><div class="promise"><span class="i18n"><span class="en" lang="en">The last five minutes, every Friday from today: write down what you learned, and push it.</span><span class="ja" lang="ja">今日から毎週金曜、最後の5分：学んだことを書きとめて、プッシュする。</span></span></div><div class="spine"><div class="seg"><span class="sn">1</span><span class="i18n"><span class="en" lang="en">Teach a model to see</span><span class="ja" lang="ja">モデルに見ることを教える</span></span></div><div class="seg"><span class="sn">2</span><span class="i18n"><span class="en" lang="en">Make it see better</span><span class="ja" lang="ja">もっとよく見えるようにする</span></span></div><div class="seg"><span class="sn">3</span><span class="i18n"><span class="en" lang="en">Add noise</span><span class="ja" lang="ja">ノイズを加える</span></span></div><div class="seg active"><span class="sn">4</span><span class="i18n"><span class="en" lang="en">Journal entry</span><span class="ja" lang="ja">ジャーナルの記入</span></span></div></div></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>35 / 37</span></div></section>
+<section class="slide" data-sid="your-journal-lives-in-your-tracker" data-type="checklist"><h1><span class="i18n"><span class="en" lang="en">Your journal lives in your tracker</span><span class="ja" lang="ja">ジャーナルはトラッカーの中にある</span></span></h1><ul class="check-list"><li><span class="i18n"><span class="en" lang="en">the repository <code>anyone-can-build-tracker</code> &mdash; no tracker yet? <b>create it now</b></span><span class="ja" lang="ja">リポジトリ <code>anyone-can-build-tracker</code> &mdash; トラッカーがまだない？ <b>いまつくる</b></span></span></li><li><span class="i18n"><span class="en" lang="en"><b>private</b>, with <code>kreativitea</code> added as a collaborator</span><span class="ja" lang="ja"><b>非公開</b>にし、<code>kreativitea</code> をコラボレーターに追加</span></span></li><li><span class="i18n"><span class="en" lang="en">one dated entry in <code>journal.md</code>, every Friday</span><span class="ja" lang="ja">毎週金曜、<code>journal.md</code> に日付つきの記入を一つ</span></span></li><li><span class="i18n"><span class="en" lang="en"><b>commit and push</b> before you leave</span><span class="ja" lang="ja">帰る前に<b>コミットしてプッシュ</b></span></span></li></ul><div class="sub"><span class="i18n"><span class="en" lang="en">This is your tracker &mdash; <b>20% of your grade</b>.</span><span class="ja" lang="ja">これがあなたのトラッカー &mdash; <b>成績の20%</b>。</span></span></div><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>36 / 37</span></div></section>
+<section class="slide" data-sid="journal-entry" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">This week on the loop: Analysis</span><span class="ja" lang="ja">今週のループ上の位置：Analysis</span></span></div><h1><span class="i18n"><span class="en" lang="en">Journal entry</span><span class="ja" lang="ja">ジャーナルの記入</span></span></h1><ol class="big num"><li><span class="i18n"><span class="en" lang="en">What did you do?</span><span class="ja" lang="ja">何をしたか？</span></span></li><li><span class="i18n"><span class="en" lang="en">What did you already know?</span><span class="ja" lang="ja">すでに何を知っていたか？</span></span></li><li><span class="i18n"><span class="en" lang="en">What did you think you knew &mdash; and what changed?</span><span class="ja" lang="ja">知っていると思っていたことは何か &mdash; そして、何が変わったか？</span></span></li><li><span class="i18n"><span class="en" lang="en">What did you learn?</span><span class="ja" lang="ja">何を学んだか？</span></span></li><li><span class="i18n"><span class="en" lang="en">What do you carry forward?</span><span class="ja" lang="ja">何を次へ持っていくか？</span></span></li></ol><div class="foot"><span>Anyone Can Build &middot; Class 6</span><span>37 / 37</span></div></section></div><div class="segbar" id="segbar"><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div></div><div class="minispine" id="minispine"><div class="chip" data-k="0"><span class="cn">1</span><span class="cl"><span class="i18n"><span class="en" lang="en">Teach a model to see</span><span class="ja" lang="ja">モデルに見ることを教える</span></span></span></div><div class="chip" data-k="1"><span class="cn">2</span><span class="cl"><span class="i18n"><span class="en" lang="en">Make it see better</span><span class="ja" lang="ja">もっとよく見えるようにする</span></span></span><span class="dots"><i data-b="0"></i><i data-b="1"></i><i data-b="2"></i><i data-b="3"></i></span></div><div class="chip" data-k="2"><span class="cn">3</span><span class="cl"><span class="i18n"><span class="en" lang="en">Add noise</span><span class="ja" lang="ja">ノイズを加える</span></span></span></div><div class="chip" data-k="3"><span class="cn">4</span><span class="cl"><span class="i18n"><span class="en" lang="en">Journal entry</span><span class="ja" lang="ja">ジャーナルの記入</span></span></span></div></div>
+<div class="deck-chrome"><button id="themebtn" class="theme-toggle" role="switch" aria-label="Toggle light / dark" title="Toggle light / dark (t)"><span class="tt-track"><span class="tt-ico sun">&#9728;</span><span class="tt-ico moon">&#9790;</span><span class="tt-knob"></span></span></button><button id="langbtn" class="lang-toggle" role="switch" aria-label="Toggle Japanese / English" title="日本語 / English (j)"><span class="lt-track"><span class="lt-knob"></span><span class="lt-opt en">E</span><span class="lt-opt ja">J</span></span></button></div>
+<script>
+const slides=[...document.querySelectorAll('.slide')];let i=0;
+const SLABELS=["Anyone Can Build","Where we are on the loop","This is a studio.","agenda","part-Teach a model to see","Teachable Machine","What will it get wrong?","Why it always answers","Four words and you have already seen all four","I never told it what a fist looks like.","So why is two minutes enough?","Before you build: where does your data go?","Two stations. Everybody ends with a working model.","Three labels.","Train against nothing.","You taught a computer to tell three hand shapes apart.","part-Make it see better","4 out of 4. 100%.","If you choose the test, you are testing yourself.","Try it on hands it has never seen.","It did not learn rock. It learned your rock.","Give it a second pair of hands.","Now somebody it has never met.","Eight of us train it.Two of us test it.","How accurate did it become?","It sees better, and you know why.","part-Add noise","Add noise","Adding a fourth category","Two ways to be right, two ways to be wrong","Adding noise results in lower accuracy but there are some ways to manage noise.","Two kinds of software","Three questions, on the way out.","Whether software is deterministic or probabilistic, there are tools to guide its output.","part-Journal entry","Your journal lives in your tracker","Journal entry"];
+const root=document.documentElement, tbtn=document.getElementById('themebtn');
+let toggleLang=null;   // assigned below, but only by a deck that has translations
+function paintTheme(){tbtn.setAttribute('aria-checked', root.dataset.theme==='dark');}
+function toggleTheme(){root.dataset.theme = root.dataset.theme==='dark'?'light':'dark';
+  try{localStorage.setItem('kgtheme',root.dataset.theme);}catch(e){} paintTheme();}
+/* True full screen, the way a slideshow app does it: the Fullscreen API, which takes
+   the whole screen and leaves no chrome at all. The browser's own window fullscreen
+   (Cmd+Ctrl+F, F11) is not the same thing — it keeps a toolbar that slides back down
+   whenever the pointer nears the top of the screen, which on a projector is a toolbar
+   the room watches appear. Escape leaves; the browser handles that key itself, so
+   there is nothing here to bind it to. The prefixed names are for older Safari, and
+   the promise is caught because a browser may simply refuse (an iframe without the
+   permission, a policy) and an unhandled rejection is not worth a console error mid-class. */
+function fullToggle(doc){
+  var d = doc || document;
+  var out = d.exitFullscreen || d.webkitExitFullscreen;
+  if(d.fullscreenElement || d.webkitFullscreenElement){ out && out.call(d); return; }
+  var el = d.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if(!req) return;
+  var p = req.call(el); if(p && p.catch) p.catch(function(){});
+}
+/* Full screen is presentation mode too: a deck filling a screen is a deck in front of a
+   room, so the switches and the Review button fade out of it exactly the way they do when
+   the presenter window opens, and come back the same way — by putting the pointer on the
+   corner they live in. See "presentation mode" in deck.css for what goes and what stays.
+
+   Its own attribute rather than reusing data-present, because the two modes start and end
+   independently: leaving full screen must not put the chrome back while the notes are
+   still up, and closing the notes must not put it back on a deck still filling a wall.
+   Listening for the event rather than setting this inside fullToggle also covers the ways
+   out that never reach that function — Escape, and the browser's own exit button. */
+['fullscreenchange','webkitfullscreenchange'].forEach(function(ev){
+  document.addEventListener(ev,function(){
+    if(document.fullscreenElement||document.webkitFullscreenElement) root.dataset.full='1';
+    else delete root.dataset.full;
+  });
+});
+tbtn.addEventListener('click',e=>{e.stopPropagation(); toggleTheme();}); paintTheme();
+const SEC=[null,null,null,null,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,3,3,3],PROG=[0,0,0,0,0.08333333333333333,0.16666666666666666,0.25,0.3333333333333333,0.4166666666666667,0.5,0.5833333333333334,0.6666666666666666,0.75,0.8333333333333334,0.9166666666666666,1,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,0.125,0.25,0.375,0.5,0.625,0.75,0.875,1,0.3333333333333333,0.6666666666666666,1],BEAT=[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0,0,1,2,3,3,null,null,null,null,null,null,null,null,null,null,null,null],BSEEN=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,2,3,4,4,4,0,0,0,0,0,0,0,0,0,0,0];
+const segs=[...document.querySelectorAll('#segbar .fl')],chips=[...document.querySelectorAll('#minispine .chip')];
+function loc(i){const k=SEC[i];
+  segs.forEach((f,s)=>f.style.transform='scaleX('+(k==null?0:(s<k?1:s===k?PROG[i]:0))+')');
+  chips.forEach(c=>{const s=+c.dataset.k, here=s===k;
+    c.classList.toggle('active',here);
+    // A section already finished reads as all past. In the section we are in, a dot is
+    // lit if it is the beat we are on, past if that beat has already begun, and plain
+    // otherwise -- so a slide that belongs to no beat still says where it sits: blank
+    // before the first beat (the divider, an epigraph), full after the last (the close).
+    const done=k!=null&&s<k, b=here?BEAT[i]:null, seen=here?BSEEN[i]:0;
+    for(const d of c.querySelectorAll('.dots i')){const j=+d.dataset.b;
+      d.className=(b!=null&&j===b)?'now':(done||j<seen)?'past':'';}});
+  document.getElementById('minispine').style.opacity=(k==null?0:1);}
+// The whole row of chips when it fits to the right of the switches, and when it does not,
+// the row an upright screen shows: see "a row of chips too long for its screen" in
+// deck.css. A row pressed onto two lines starts at the left edge, so it fails the same
+// test. 12px is the gap the phone band leaves between the switches and the chips. Measured
+// again when the room or the names can change: the window's size, and the language.
+const chipCorner=document.querySelector('.deck-chrome');
+function fitChips(){const ms=document.getElementById('minispine');ms.classList.remove('compact');
+  ms.classList.toggle('compact',chips[0].getBoundingClientRect().left<chipCorner.getBoundingClientRect().right+12);}
+fitChips();addEventListener('resize',fitChips);
+if(document.fonts)document.fonts.ready.then(fitChips);
+new MutationObserver(fitChips).observe(root,{attributes:true,attributeFilter:['data-lang']});
+// Typewriter reveal for mono code/prompts. This is a keystroke model rather
+// than a wipe: gaps are drawn log-normally and then multiplied by what the
+// hands are actually doing (which finger, which hand, is shift held), and the
+// run length between stops comes from how hard the NEXT token is, so easy
+// clauses stream and unfamiliar tokens interrupt. Tuned in shared/typing-lab.html.
+// Preserves syntax-colored spans; respects reduced-motion; cancels on navigation.
+const TYPE = {
+  wpm: 300,          // target pace, five characters to a word
+  lead: 100,         // ms of stillness before the first keystroke
+  sigma: 0.60,       // spread of the gap at a stop
+  burstPause: 12,    // a stop, relative to a keystroke inside a run
+  fluency: 1.6,      // how easily familiar material streams
+  maxRun: 60,        // hard ceiling on one fluent run, in characters
+  tight: 0.15,       // spread inside a run: fast and even, it is one motor unit
+  maxMs: 2000        // ceiling on a single reveal. A long block compresses, but the
+                     // SHAPE survives, and the shape is what reads as typing. 0 = no cap.
+                     // Two seconds, set by Mike 2026-08-22. It was 4000, and a long
+                     // passage took long enough that the room waited on the slide.
+};
+const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+let typeGen = 0;
+/* The typewriter reveals every text node it walks — so anything the HAND wrote has to be
+   skipped, or the machine ends up typing it. A "hand-in" is a handwritten annotation
+   sitting inside a code block (a label pencilled onto a printout).
+   TWO RULES, and they pull in opposite directions until you state both. The hand is never
+   TYPED, because a person does not write one character per keystroke. But it must not be
+   on screen before the line it points at, or it is an arrow aimed at nothing. So: skipped
+   by the walker below, hidden by CSS while the machine types, and faded in whole once the
+   reveal finishes (the "typed" class, set at the end of typeIn).
+   NOTE: no backticks anywhere in here — this function lives inside a template literal. */
+function textNodes(el){
+  const w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT,{acceptNode:function(n){
+    for(let p=n.parentNode;p&&p!==el;p=p.parentNode)
+      if(p.classList&&p.classList.contains("hand-in")) return NodeFilter.FILTER_REJECT;
+    return NodeFilter.FILTER_ACCEPT;
+  }}),a=[];let t;while(t=w.nextNode())a.push(t);return a;}
+
+/* QWERTY: which hand, which finger, and whether the key needs shift. */
+const TW_ROWS={L:{0:"`1qaz",1:"2wsx",2:"3edc",3:"45rfvtgb"},R:{3:"67yhnujm",2:"8ik,",1:"9ol.",0:"0p;/-='[]\\"}};
+const TW_KEY={}; for(const h in TW_ROWS) for(const f in TW_ROWS[h]) for(const c of TW_ROWS[h][f]) TW_KEY[c]={h:h,f:+f};
+const TW_SHIFTED={"~":"`","!":"1","@":"2","#":"3","$":"4","%":"5","^":"6","&":"7","*":"8","(":"9",")":"0",
+  "_":"-","+":"=","{":"[","}":"]","|":"\\",":":";","\"":"'","<":",",">":".","?":"/"};
+function twKey(ch){
+  if(ch===" ") return {h:"T",f:9,shift:false};
+  const lo=ch.toLowerCase();
+  if(ch!==lo&&TW_KEY[lo]) return {h:TW_KEY[lo].h,f:TW_KEY[lo].f,shift:true};
+  if(TW_SHIFTED[ch]&&TW_KEY[TW_SHIFTED[ch]]) return {h:TW_KEY[TW_SHIFTED[ch]].h,f:TW_KEY[TW_SHIFTED[ch]].f,shift:true};
+  if(TW_KEY[lo]) return {h:TW_KEY[lo].h,f:TW_KEY[lo].f,shift:false};
+  return {h:"?",f:-1,shift:false};
+}
+const TW_COMMON=new Set(("the be to of and a in that have i it for not on with he as you do at this but his by from "+
+ "they we say her she or an will my one all would there their what so up out if about who get which go me when make "+
+ "can like time no just him know take people into year your good some could them see other than then now look only "+
+ "come its over think also back after use two how our work first well way even new want because any these give day "+
+ "most us is are was were been has had file should show keep write let each part open press copy more own "+
+ "def return for if else import from print with class self test true false none or not git cd ls make npm node python").split(" "));
+function twHard(tok){
+  if(!tok) return 0;
+  const lo=tok.toLowerCase().replace(/[^a-z0-9_.]/g,"");
+  let d=0;
+  if(TW_COMMON.has(lo)) d-=0.26;                    // typed a thousand times already
+  d+=Math.max(0,tok.length-5)*0.05;                 // long words need looking at
+  if(/[0-9]/.test(tok)) d+=0.20;                    // digits live on the top row
+  if(/[_.\-\/\\]/.test(tok)) d+=0.18;               // index.html, split_bill
+  if(/[A-Z]/.test(tok.slice(1))) d+=0.15;           // camelCase: a shift mid-token
+  if(/^[^A-Za-z0-9]+$/.test(tok)) d+=0.25;          // a run of symbols
+  return d;
+}
+function twToken(t,i){
+  if(!/[A-Za-z0-9_.\-]/.test(t[i])) return t[i];
+  let j=i; while(j<t.length&&/[A-Za-z0-9_.\-]/.test(t[j])) j++;
+  return t.slice(i,j);
+}
+let twSpare=null;
+function twGauss(){ if(twSpare!==null){const v=twSpare;twSpare=null;return v;}
+  let u,w,q; do{u=Math.random()*2-1;w=Math.random()*2-1;q=u*u+w*w;}while(!q||q>=1);
+  const m=Math.sqrt(-2*Math.log(q)/q); twSpare=w*m; return u*m; }
+
+/* Per-character schedule: ms from the start, for each character. */
+function twSchedule(text){
+  const BOUND=" \n\t.,;:!?()[]{}<>\"'/=+-*_&|", CLAUSE=".,;:!?";
+  const base=60000/(TYPE.wpm*5);
+  const raw=new Float64Array(text.length);
+  let prev=null, prevCh="", run=0, atLineStart=true;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(atLineStart&&(ch===" "||ch==="\t")){ raw[i]=0; continue; }   // an editor supplies indentation
+    if(ch!=="\n"&&ch!==" ") atLineStart=false;
+    const tokenStart = run>0 && BOUND.indexOf(prevCh)>-1 && BOUND.indexOf(ch)<0;
+    let stop=false;
+    if(run>0){
+      if(run>=TYPE.maxRun) stop=true;
+      else if(CLAUSE.indexOf(prevCh)>-1) stop=Math.random()<0.85;   // a clause break is planning
+      else if(tokenStart) stop=Math.random()<Math.max(0,(0.10+twHard(twToken(text,i)))/TYPE.fluency);
+    }
+    let m = stop ? TYPE.burstPause*Math.exp(twGauss()*TYPE.sigma)
+                 : Math.exp(twGauss()*TYPE.tight);
+    run = stop ? 1 : run+1;
+    const k=twKey(ch);
+    if(prev&&k.f>=0&&prev.f>=0){
+      if(prevCh===ch) m*=0.72;             // a doubled letter: one finger, twice
+      else if(prev.h!==k.h) m*=0.82;       // hands alternate and prepare in parallel
+      else if(prev.f===k.f) m*=1.95;       // same finger, different key: it has to travel
+    }
+    if(k.shift&&!(prev&&prev.shift)) m*=1.45;   // shift is a chord
+    if(ch==="\n") m*=3.2;
+    raw[i]=m; prev=k; prevCh=ch;
+    if(ch==="\n") atLineStart=true;
+  }
+  let sum=0; for(let i=0;i<raw.length;i++) sum+=raw[i];             // renormalise to the target pace
+  const scale = sum ? (base*text.length)/sum : 1;
+  const at=new Float64Array(text.length); let t=TYPE.lead;
+  for(let i=0;i<text.length;i++){ t+=raw[i]*scale; at[i]=t; }
+  const last=at[at.length-1]||0;                                  // else a 400-char block runs for 17s
+  if(TYPE.maxMs&&last>TYPE.maxMs){ const c=TYPE.maxMs/last; for(let i=0;i<at.length;i++) at[i]*=c; }
+  return at;
+}
+
+function typeIn(slide){
+  const gen = ++typeGen;
+  slide.querySelectorAll(".typewrite").forEach(el=>{
+    if(!el.__tw){ el.style.minHeight = el.offsetHeight+"px"; el.__tw = textNodes(el).map(n=>({n:n, s:n.nodeValue})); }
+    const parts = el.__tw, total = parts.reduce((a,x)=>a+x.s.length,0);
+    // 'typed' gates the handwritten annotations: off while the machine is typing, on when
+    // it has finished, so a label never points at a line that is not there yet.
+    el.classList.remove("typed");
+    if(!total){ el.classList.add("typed"); return; }
+    // caret stays on (class 'typing') after the reveal, so it keeps blinking like a live terminal
+    if(reduceMotion){ parts.forEach(x=>x.n.nodeValue=x.s); el.classList.add("typing","typed"); return; }
+    el.classList.add("typing"); parts.forEach(x=>x.n.nodeValue="");
+    const at = twSchedule(parts.map(p=>p.s).join("")), t0 = performance.now();
+    let k = 0;
+    (function frame(now){
+      if(gen!==typeGen) return;
+      const e = now - t0;
+      while(k<total && at[k]<=e) k++;
+      let c=0;
+      for(const x of parts){ if(c>=k){x.n.nodeValue="";} else if(c+x.s.length<=k){x.n.nodeValue=x.s;c+=x.s.length;} else {x.n.nodeValue=x.s.slice(0,k-c);c=k;} }
+      if(k<total) requestAnimationFrame(frame); else el.classList.add("typed");
+    })(t0);
+  });
+}
+/* ---------- presenter view (press "s") ----------
+   A second window, written into directly from here. No postMessage, no
+   BroadcastChannel, no storage: an opener may touch a window it opened, and that is
+   the one mechanism that works from file:// in every browser. */
+const NOTES = [], NOTES_WARN = null;
+let pv = null, pvBase = 0, pvTimer = null;
+function pvWrite(){
+  if(!pv || pv.closed) return;
+  const d = pv.document, cur = NOTES[i] || {t:'',n:''}, nxt = NOTES[i+1];
+  // The presenter reads in whichever language the deck is showing. Falls back to
+  // English per note, so an untranslated note is still there to be read.
+  const ja = root.dataset.lang === 'ja';
+  const pick = (o,k) => (ja && o && o[k+'ja']) || (o && o[k]) || '';
+  // ...and says which language it picked. The browser ends a Japanese line between
+  // phrases only in text it knows is Japanese; see "bilingual slides" in deck.css.
+  const lang = (o,k) => (ja && o && o[k+'ja']) ? 'ja' : 'en';
+  d.getElementById('pv-pos').textContent = (i+1) + ' / ' + slides.length;
+  d.getElementById('pv-title').textContent = pick(cur,'t');
+  d.getElementById('pv-title').lang = lang(cur,'t');
+  d.getElementById('pv-note').innerHTML = pick(cur,'n') || '<span class="pv-empty">no Say: line for this slide in the design</span>';
+  d.getElementById('pv-note').lang = lang(cur,'n');
+  d.getElementById('pv-next').innerHTML = nxt
+    ? '<b>Next &mdash; ' + pick(nxt,'t') + '</b><br>' + pick(nxt,'n').replace(/<[^>]+>/g,'').slice(0,240) + '&hellip;'
+    : '<b>End of deck</b>';
+  d.getElementById('pv-next').lang = lang(nxt,'n');
+  d.body.setAttribute('data-theme', root.dataset.theme || 'light');
+  d.body.setAttribute('data-lang', root.dataset.lang || 'en');
+}
+function pvOpen(){
+  if(pv && !pv.closed){ pv.focus(); return; }
+  pv = window.open('', 'acb-presenter', 'width=1000,height=780');
+  if(!pv){ alert('The presenter window was blocked. Allow pop-ups for this file and press s again.'); return; }
+  // The presenter window opening is the signal that this deck is now on a wall in front
+  // of a room, so the deck window goes quiet: see "presentation mode" in deck.css for
+  // what that hides and how the presenter gets it back. Cleared when the window closes.
+  root.dataset.present = '1';
+  pv.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Presenter</title><style>'
+    + ':root{--paper:#fdf6e3;--panel:#fffdf6;--ink:#073642;--muted:#657b83;--line:#e7e0c9;--accent:#268bd2;--bad:#dc322f}'
+    + 'body[data-theme=dark]{--paper:#002b36;--panel:#073642;--ink:#eee8d5;--muted:#93a1a1;--line:#0e4b59;--accent:#289be2}'
+    + '*{box-sizing:border-box;margin:0;padding:0}'
+    + 'body{background:var(--paper);color:var(--ink);font:16px/1.5 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;'
+    + 'padding:20px;display:flex;flex-direction:column;height:100vh;gap:13px}'
+    + 'body[data-lang=ja]{font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",'
+    + '"Noto Sans JP",Meiryo,sans-serif;line-break:strict}'
+    + '@supports (word-break:auto-phrase){[lang=ja]{word-break:auto-phrase;overflow-wrap:anywhere}}'
+    + 'header{display:flex;align-items:baseline;gap:16px;border-bottom:2px solid var(--line);padding-bottom:10px}'
+    + '#pv-pos{font-family:ui-monospace,monospace;font-size:15px;color:var(--muted)}'
+    + '#pv-title{font-size:21px;font-weight:800;flex:1}'
+    + '#pv-clock{font-family:ui-monospace,monospace;font-size:31px;font-weight:700;color:var(--accent);cursor:pointer;user-select:none}'
+    + '#pv-note{flex:1;overflow:auto;font-size:23px;line-height:1.56;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 24px}'
+    + '#pv-note code{font-family:ui-monospace,monospace;background:rgba(127,127,127,.16);padding:1px 5px;border-radius:4px;font-size:.88em}'
+    + '#pv-next{max-height:22%;overflow:auto;font-size:15px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;line-height:1.45}'
+    + '.pv-empty{color:var(--muted);font-style:italic}'
+    + '.pv-do{display:block;color:var(--accent);font-size:.86em;line-height:1.5;'
+    + 'border-left:3px solid var(--accent);padding-left:12px}'
+    + '#pv-warn{background:var(--bad);color:#fff;padding:8px 14px;border-radius:8px;font-size:14px;font-weight:700}'
+    + 'footer{font-size:12.5px;color:var(--muted);font-family:ui-monospace,monospace}'
+    + '</style></head><body>'
+    + (NOTES_WARN ? '<div id="pv-warn">&#9888; NOTES MAY BE OUT OF STEP &mdash; ' + NOTES_WARN + '. Check against the design before trusting them.</div>' : '')
+    + '<header><span id="pv-pos"></span><span id="pv-title"></span><span id="pv-clock" title="click to reset">00:00</span></header>'
+    + '<div id="pv-note"></div><div id="pv-next"></div>'
+    + '<footer>arrows move both windows &middot; <b>f</b> fills this screen &middot; click the clock to reset &middot; notes come from the design file</footer>'
+    + '</body></html>');
+  pv.document.close();
+  pv.document.addEventListener('keydown', function(e){
+    if(['ArrowRight','ArrowDown','PageDown',' '].indexOf(e.key)>-1){ e.preventDefault(); next(); }
+    else if(['ArrowLeft','ArrowUp','PageUp'].indexOf(e.key)>-1){ e.preventDefault(); prev(); }
+    else if((e.key==='f'||e.key==='F') && !e.metaKey && !e.ctrlKey && !e.altKey){
+      e.preventDefault(); fullToggle(pv.document); }
+  });
+  pvBase = Date.now();
+  pv.document.getElementById('pv-clock').addEventListener('click', function(){ pvBase = Date.now(); });
+  clearInterval(pvTimer);
+  pvTimer = setInterval(function(){
+    if(!pv || pv.closed){ clearInterval(pvTimer); delete root.dataset.present; return; }
+    var t = Math.floor((Date.now()-pvBase)/1000);
+    pv.document.getElementById('pv-clock').textContent =
+      String(Math.floor(t/60)).padStart(2,'0') + ':' + String(t%60).padStart(2,'0');
+  }, 500);
+  pvWrite();
+}
+window.addEventListener('beforeunload', function(){ if(pv && !pv.closed) pv.close(); });
+function show(n){
+  var prev=slides[i];
+  i=Math.max(0,Math.min(slides.length-1,n));
+  slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+  // A slide whose body carries its own animation listens for these. Its inline
+  // <script> runs at parse time (so it can register before the first show()) and
+  // uses document.currentScript.closest('section') to find itself.
+  if(prev&&prev!==slides[i]) prev.dispatchEvent(new CustomEvent('slidehide'));
+  slides[i].dispatchEvent(new CustomEvent('slideshow'));
+  loc(i);typeIn(slides[i]);location.hash=i+1;pvWrite();}
+function next(){show(i+1)}function prev(){show(i-1)}
+document.addEventListener('keydown',e=>{
+  if(['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();next();}
+  else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();prev();}
+  else if(e.key==='Home'){show(0);}else if(e.key==='End'){show(slides.length-1);}
+  // Every shortcut below is a BARE letter, never a letter with a modifier held down:
+  // Cmd/Ctrl+F is find, Cmd/Ctrl+S is save, and those belong to the browser and to the
+  // machine. Without this line the handler ate them — pressing Cmd+F on a slide opened
+  // full screen instead of the find bar. Same rule the review panel's comment key follows.
+  else if(e.metaKey||e.ctrlKey||e.altKey){return;}
+  else if(e.key==='t'||e.key==='T'){e.preventDefault();toggleTheme();}
+  else if((e.key==='j'||e.key==='J')&&toggleLang){e.preventDefault();toggleLang();}
+  
+  else if(e.key==='f'||e.key==='F'){e.preventDefault();fullToggle();}});
+/* The keys move the deck, and no click does. Clicking used to advance it — the left
+   quarter went back, anywhere else went forward — which made the slide text impossible
+   to select: every attempt to drag across a sentence ended in a click, and the deck
+   moved out from under it. A slide is now a page you can point at, so a reviewer can
+   select the line they mean and comment on that line. Presenting is unaffected:
+   arrows, PageUp/PageDown and space all still work, which is what a remote sends.
+
+   A phone has none of those keys, and tapping was how a deck moved there, so a sideways
+   swipe takes over: one finger, mostly sideways, quick, and never while text is
+   selected — dragging the selection handles must not move the slide out from under
+   them. */
+var swx=0,swy=0,swt=0;
+document.addEventListener('touchstart',e=>{
+  if(e.touches.length!==1){swt=0;return;}
+  swx=e.touches[0].clientX;swy=e.touches[0].clientY;swt=Date.now();},{passive:true});
+document.addEventListener('touchend',e=>{
+  if(!swt||e.changedTouches.length!==1)return;
+  const t=e.changedTouches[0],dx=t.clientX-swx,dy=t.clientY-swy,dt=Date.now()-swt;swt=0;
+  const rp=document.getElementById('rvpanel'), sel=window.getSelection();
+  if(rp&&rp.classList.contains('open'))return;
+  if(sel&&!sel.isCollapsed&&String(sel).trim())return;
+  if(dt>600||Math.abs(dx)<60||Math.abs(dx)<Math.abs(dy)*2)return;
+  dx<0?next():prev();},{passive:true});
+const langbtn=document.getElementById('langbtn');
+function paintLang(){langbtn.setAttribute('aria-checked', root.dataset.lang==='ja');}
+toggleLang=function(){root.dataset.lang = root.dataset.lang==='ja'?'en':'ja';
+  try{localStorage.setItem('kglang',root.dataset.lang);}catch(e){}
+  paintLang(); pvWrite();};
+langbtn.addEventListener('click',e=>{e.stopPropagation(); toggleLang();}); paintLang();
+show((parseInt(location.hash.slice(1))||1)-1);
+</script>
+
+</body></html>

@@ -283,6 +283,14 @@ code{font-family:var(--font-mono);background:var(--chip);padding:.1vmin .8vmin;b
   display:flex;align-items:center;justify-content:center;font-size:1.35vmin;font-weight:800}
 .minispine .chip.active{border-color:var(--accent);color:var(--ink)}
 .minispine .chip.active .cn{background:var(--accent);color:var(--on-accent)}
+/* beat dots: one per subheading inside a section, so a glance says whether we are
+   still on the same topic or have moved to the next one. Only the section we are in
+   paints them; a finished section's read as past. */
+.minispine .chip .dots{display:flex;align-items:center;gap:.55vmin;margin-left:.6vmin}
+.minispine .chip .dots i{width:.85vmin;height:.85vmin;border-radius:50%;background:var(--chip);
+  transition:background .2s,transform .2s}
+.minispine .chip .dots i.past{background:var(--muted)}
+.minispine .chip .dots i.now{background:var(--accent);transform:scale(1.45)}
 /* ---- bilingual slides (data-lang on <html>, toggled by the button or "j") ----
    A translated string ships as both languages inside one <span class="i18n">, and
    this is all that chooses between them. display:contents rather than inline is
@@ -373,6 +381,79 @@ html[data-lang="ja"] .lt-opt.ja{color:var(--on-accent)}
 /* ==/toggles== */
 /* on a deck the pair is pinned to the corner of the window, clear of the slide */
 .deck-chrome{position:fixed;top:14px;left:14px;z-index:7;display:flex;gap:8px;align-items:center}
+
+/* ---------- on a phone ----------
+   A slide is sized in vmin, so it is the same picture on a laptop and on a wall. The
+   switches are sized in px, and that is what keeps them clear of a slide on a projector
+   and puts them on top of one on a phone. When the short side of the screen is under
+   500px, the 8.6vmin a slide leaves above its kicker is about 33px, and the switches reach
+   down to 40px, so the kicker ran under them. The chips grow leftwards from the right
+   edge, so on an upright phone a long row of them (Class 5 has five sections) ran under
+   the switches from the other side. At 1.5vmin their words were under 6px tall anyway.
+
+   So on a phone the top of the screen is a band that belongs to the chrome, and the slide
+   starts below it. The chips take the switches' own size, in px, and only the section you
+   are in keeps its name: the others show their number, which is still the whole spine at a
+   glance, and the divider slides still name every section. On a phone held sideways the
+   chips share the switches' row. Upright, that row is too narrow, so they take the row
+   under it. A slide taller than the screen now loses its bottom line instead of its kicker.
+
+   One part reaches past phones. A tablet held upright had the same chips under the
+   switches, so any upright screen shows the name on the current chip only. It also had
+   slides taller than the screen, whose kicker went up under the switches, so on any
+   upright screen that slide loses its bottom instead, as on a phone. Nothing here
+   reaches a screen that is wider than it is tall and more than 500px tall. That is every
+   laptop and every projector, so a deck on a wall looks exactly as it did. All of this is
+   here because most students read the decks on a phone (publish/README.md). */
+@media (orientation:portrait),(max-height:500px){
+  /* a chip you are not in is its number and nothing around it, so the one you are in has
+     the room for its name */
+  .minispine .chip:not(.active){padding:0;border-color:transparent;background:none}
+  .minispine .chip:not(.active) .cl,.minispine .chip:not(.active) .dots{display:none}
+  /* safe: a slide taller than the screen loses its bottom, not its kicker */
+  .slide{justify-content:safe center}
+  /* a pinned title (.stage-top) starts where every other slide starts, on the line that
+     clears the chips: at 8vmin a big title was touching the chip above it. A phone moves
+     it again, below its band */
+  .stage-top{top:8.6vmin}
+}
+@media (max-width:500px),(max-height:500px){
+  .minispine{top:14px;left:142px;justify-content:flex-end;gap:4px}
+  .minispine .chip{flex:none;height:26px;padding:0 9px 0 3px;gap:5px;border-width:1px;font-size:10.5px}
+  .minispine .chip .cn{width:18px;height:18px;font-size:10px}
+  .minispine .chip .dots{gap:3px;margin-left:1px}
+  .minispine .chip .dots i{width:5px;height:5px}
+  /* a name too long for the row ends in "…" rather than pushing the row under the switches.
+     Only the name gives way: the number stays round and the dots keep their size */
+  .minispine .chip.active{flex:0 1 auto;min-width:0}
+  .minispine .chip.active .cl{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .minispine .chip .cn,.minispine .chip .dots{flex:none}
+  /* 8px under the band, about the gap between the chips and the slide on a projector */
+  .slide{padding-top:48px}
+  .stage-top{top:48px}
+}
+@media (max-width:500px) and (orientation:portrait){
+  /* a row of its own, which is chrome, so it keeps the switches' 14px from the edge */
+  .minispine{top:48px;left:14px;right:14px}
+  .slide{padding-top:82px}
+  .stage-top{top:82px}
+}
+
+/* ---------- a row of chips too long for its screen ----------
+   A row is as long as its section names. Every deck's row but one is 82vmin or less, and
+   fits beside the switches on a 4:3 screen. Class 5's five names come to 127vmin, and with
+   its 9vmin margin that is wider than a 4:3 screen, which is 133vmin across. There the row
+   pressed its names onto two lines, ran under the switches, and came down over the kicker,
+   in presentation mode too, where the switches are hidden.
+
+   So wherever the whole row does not fit to the right of the switches, it becomes the row an
+   upright screen shows: the section you are in keeps its name and its dots, and the others
+   show their number. The screen's shape cannot tell when that is, because only the names
+   know how long they are, so the deck measures and sets .compact (fitChips, in
+   build-deck.js). Every deck's row fits on a 16:9 or 16:10 screen, so a projector of those
+   shapes never sees this. Without the script the whole row shows, as it always did. */
+.minispine.compact .chip:not(.active){padding:0;border-color:transparent;background:none}
+.minispine.compact .chip:not(.active) .cl,.minispine.compact .chip:not(.active) .dots{display:none}
 
 /* ---------- presentation mode ----------
    Set on <html> by either of the two things that mean "this deck is in front of a room":
@@ -534,7 +615,7 @@ r = requests.<span class="f">get</span>(<span class="s">"api.weather.com/tokyo"<
 <section class="slide" data-sid="zoom-out-this-loop-lives-inside-a" data-type="raw"><div class="kicker"><span class="i18n"><span class="en" lang="en">The slow hand, and the fast one</span><span class="ja" lang="ja">遅い針と、速い針</span></span></div><h1><span class="i18n"><span class="en" lang="en">Zoom out: this loop lives inside a bigger one</span><span class="ja" lang="ja">このループは、もっと大きなループの中にある</span></span></h1><div style="display:flex;justify-content:center;margin:auto 0"><svg viewBox="0 0 1200 560" style="width:94vw;max-height:62vh" role="img"><circle cx="230" cy="300" r="165" fill="none" stroke="var(--line)" stroke-width="3" stroke-dasharray="10 9"/><polygon points="-8.06,-7.15 8.06,-7.15 0,13" fill="var(--muted)" transform="translate(179.01219592813368,143.07567481129965) rotate(-108)"/><polygon points="-8.06,-7.15 8.06,-7.15 0,13" fill="var(--muted)" transform="translate(363.4878040718663,203.01543337174195) rotate(-36)"/><polygon points="-8.06,-7.15 8.06,-7.15 0,13" fill="var(--muted)" transform="translate(363.4878040718663,396.98456662825805) rotate(36)"/><polygon points="-8.06,-7.15 8.06,-7.15 0,13" fill="var(--muted)" transform="translate(179.01219592813368,456.9243251887003) rotate(108)"/><polygon points="-8.06,-7.15 8.06,-7.15 0,13" fill="var(--muted)" transform="translate(65,300) rotate(180)"/><circle cx="96.51219592813368" cy="203.01543337174192" r="45" fill="var(--chip)" stroke="var(--line)" stroke-width="3"/><text x="96.51219592813368" y="210.01543337174192" text-anchor="middle" font-family="var(--font-sans)" font-size="18" font-weight="800" fill="var(--ink)">Idea</text><circle cx="280.9878040718663" cy="143.07567481129968" r="45" fill="var(--chip)" stroke="var(--line)" stroke-width="3"/><text x="280.9878040718663" y="150.07567481129968" text-anchor="middle" font-family="var(--font-sans)" font-size="18" font-weight="800" fill="var(--ink)">Design</text><circle cx="395" cy="300" r="52" fill="var(--accent)" stroke="var(--accent)" stroke-width="3"/><text x="395" y="307" text-anchor="middle" font-family="var(--font-sans)" font-size="20" font-weight="800" fill="var(--on-accent)">Build</text><circle cx="280.9878040718663" cy="456.9243251887003" r="45" fill="var(--chip)" stroke="var(--line)" stroke-width="3"/><text x="280.9878040718663" y="463.9243251887003" text-anchor="middle" font-family="var(--font-sans)" font-size="18" font-weight="800" fill="var(--ink)">Prod</text><circle cx="96.51219592813368" cy="396.9845666282581" r="45" fill="var(--chip)" stroke="var(--line)" stroke-width="3"/><text x="96.51219592813368" y="403.9845666282581" text-anchor="middle" font-family="var(--font-sans)" font-size="18" font-weight="800" fill="var(--ink)">Analysis</text><text x="230" y="68" text-anchor="middle" font-family="var(--font-sans)" font-size="23" font-weight="600" fill="var(--muted)">The SDLC &#183; weeks</text><text x="230" y="309" text-anchor="middle" font-family="var(--font-sans)" font-size="32" font-weight="600" fill="var(--muted)">&#8635;</text><path d="M415,254 L670.5776879745548,167.6327828049835 M415,346 L670.5776879745548,432.3672171950165" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="9 8" fill="none" opacity=".7"/><circle cx="840" cy="300" r="215" fill="var(--panel)" stroke="var(--accent)" stroke-width="4.5"/><path d="M893.771531296913,110.48054869754108 A197,197 0 0 1 978.4220440503733,159.8274715897708" fill="none" stroke="var(--accent-2)" stroke-width="4"/><polygon points="-8.06,-7.15 8.06,-7.15 0,13" fill="var(--accent-2)" transform="translate(991.7911088268304,174.4274740195081) rotate(-39.60000000000001)"/><path d="M1036.860026110196,292.5750340140229 A197,197 0 0 1 1016.0867605577989,388.3314935697364" fill="none" stroke="var(--accent-2)" stroke-width="4"/><polygon points="-8.06,-7.15 8.06,-7.15 0,13" fill="var(--accent-2)" transform="translate(1006.332601323897,405.5578786108623) rotate(32.39999999999999)"/><path d="M907.8946558653798,484.9305699578132 A197,197 0 0 1 810.4055589432108,494.76439371336903" fill="none" stroke="var(--accent-2)" stroke-width="4"/><polygon points="-8.06,-7.15 8.06,-7.15 0,13" fill="var(--accent-2)" transform="translate(791.0080922285235,490.8108827423403) rotate(104.4)"/><path d="M685.1011788690861,421.7183437787959 A197,197 0 0 1 645.6228689910499,332.0395215433921" fill="none" stroke="var(--accent-2)" stroke-width="4"/><polygon points="-8.06,-7.15 8.06,-7.15 0,13" fill="var(--accent-2)" transform="translate(643.3887344996306,312.3697323472746) rotate(176.40000000000003)"/><path d="M676.3726078584249,190.29550355182704 A197,197 0 0 1 749.4627674575668,125.0371195837318" fill="none" stroke="var(--accent-2)" stroke-width="4"/><polygon points="-8.06,-7.15 8.06,-7.15 0,13" fill="var(--accent-2)" transform="translate(767.4794631211187,116.83403228001438) rotate(248.4000000000001)"/><rect x="780" y="132" width="120" height="50" rx="12" fill="var(--accent)" stroke="var(--accent)" stroke-width="3"/><text x="840" y="164.35" text-anchor="middle" font-family="var(--font-mono)" font-size="21" font-weight="800" fill="var(--on-accent)">edit</text><rect x="916.0010818302069" y="230.8105698043825" width="120" height="50" rx="12" fill="var(--accent)" stroke="var(--accent)" stroke-width="3"/><text x="976.0010818302069" y="263.16056980438253" text-anchor="middle" font-family="var(--font-mono)" font-size="21" font-weight="800" fill="var(--on-accent)">run</text><rect x="864.0532910778237" y="390.6894301956175" width="120" height="50" rx="12" fill="var(--accent)" stroke="var(--accent)" stroke-width="3"/><text x="924.0532910778237" y="423.0394301956175" text-anchor="middle" font-family="var(--font-mono)" font-size="21" font-weight="800" fill="var(--on-accent)">read</text><rect x="695.9467089221764" y="390.6894301956175" width="120" height="50" rx="12" fill="var(--accent)" stroke="var(--accent)" stroke-width="3"/><text x="755.9467089221764" y="423.0394301956175" text-anchor="middle" font-family="var(--font-mono)" font-size="21" font-weight="800" fill="var(--on-accent)">debug</text><rect x="643.9989181697931" y="230.81056980438248" width="120" height="50" rx="12" fill="var(--accent)" stroke="var(--accent)" stroke-width="3"/><text x="703.9989181697931" y="263.1605698043825" text-anchor="middle" font-family="var(--font-mono)" font-size="21" font-weight="800" fill="var(--on-accent)">commit</text><text x="840" y="302" text-anchor="middle" font-family="var(--font-sans)" font-size="22" font-weight="600" fill="var(--ink)">Inside <tspan font-weight="800" fill="var(--accent)">Build</tspan></text><text x="840" y="332" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">minutes &#183; over and over</text></svg></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en">The fast hand turns inside <b>Build</b>, dozens of times, before the slow one moves on.</span><span class="ja" lang="ja">遅い針が次へ動くまでに、速い針は<b>Build</b>の中を何十周もする。</span></span></div><div class="foot"><span>Anyone Can Build · Class 1</span><span>61 / 64</span></div></section>
 <section class="slide" data-sid="what-you-now-have" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">What you now have</span><span class="ja" lang="ja">いま手にしているもの</span></span></div><ul class="big"><li class="check"><span class="i18n"><span class="en" lang="en">A working workshop, on your own laptop</span><span class="ja" lang="ja">自分のパソコンで動く、自分の仕事場</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">The loop: edit · run · read · debug · commit</span><span class="ja" lang="ja">ループ：edit · run · read · debug · commit</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">A place on the ladder: intent, judgment, responsibility</span><span class="ja" lang="ja">はしごの上の立ち位置：意図・判断・責任</span></span></li></ul><div class="foot"><span>Anyone Can Build · Class 1</span><span>62 / 64</span></div></section>
 <section class="slide" data-sid="whats-next" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">What's next</span><span class="ja" lang="ja">次回</span></span></div><ul class="big"><li><span class="i18n"><span class="en" lang="en">Now (<b>The day you shipped something live</b>): ship something live, send the link to a friend</span><span class="ja" lang="ja">次（<b>はじめて公開した日</b>）：何かを公開して、リンクを友だちに送る</span></span></li><li><span class="i18n"><span class="en" lang="en">Homework comes once, at the end of the day</span><span class="ja" lang="ja">宿題は一日の終わりに、まとめて一度だけ</span></span></li></ul><div class="foot"><span>Anyone Can Build · Class 1</span><span>63 / 64</span></div></section>
-<section class="slide close" data-sid="your-workshop-is-ready-next-you-build" data-type="close"><div class="center" style="margin:auto"><div class="tag"><span class="i18n"><span class="en" lang="en">Anyone can build.</span><span class="ja" lang="ja">誰でもつくれる。</span></span></div><div class="big-statement" style="margin-top:3vmin"><span class="i18n"><span class="en" lang="en">Your workshop is ready.<br>Next, you build something real.</span><span class="ja" lang="ja">仕事場の準備ができた。<br>次は、本物をつくる。</span></span></div></div><div class="foot"><span>Anyone Can Build · Class 1</span><span>64 / 64</span></div></section></div><div class="segbar" id="segbar"><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div></div><div class="minispine" id="minispine"><div class="chip" data-k="0"><span class="cn">1</span><span class="i18n"><span class="en" lang="en">How we got here</span><span class="ja" lang="ja">ここに至るまで</span></span></div><div class="chip" data-k="1"><span class="cn">2</span><span class="i18n"><span class="en" lang="en">Coding vs. building</span><span class="ja" lang="ja">コーディングと、つくること</span></span></div><div class="chip" data-k="2"><span class="cn">3</span><span class="i18n"><span class="en" lang="en">Set up your workshop</span><span class="ja" lang="ja">仕事場を整える</span></span></div><div class="chip" data-k="3"><span class="cn">4</span><span class="i18n"><span class="en" lang="en">The building loop</span><span class="ja" lang="ja">つくるループ</span></span></div></div>
+<section class="slide close" data-sid="your-workshop-is-ready-next-you-build" data-type="close"><div class="center" style="margin:auto"><div class="tag"><span class="i18n"><span class="en" lang="en">Anyone can build.</span><span class="ja" lang="ja">誰でもつくれる。</span></span></div><div class="big-statement" style="margin-top:3vmin"><span class="i18n"><span class="en" lang="en">Your workshop is ready.<br>Next, you build something real.</span><span class="ja" lang="ja">仕事場の準備ができた。<br>次は、本物をつくる。</span></span></div></div><div class="foot"><span>Anyone Can Build · Class 1</span><span>64 / 64</span></div></section></div><div class="segbar" id="segbar"><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div></div><div class="minispine" id="minispine"><div class="chip" data-k="0"><span class="cn">1</span><span class="cl"><span class="i18n"><span class="en" lang="en">How we got here</span><span class="ja" lang="ja">ここに至るまで</span></span></span></div><div class="chip" data-k="1"><span class="cn">2</span><span class="cl"><span class="i18n"><span class="en" lang="en">Coding vs. building</span><span class="ja" lang="ja">コーディングと、つくること</span></span></span></div><div class="chip" data-k="2"><span class="cn">3</span><span class="cl"><span class="i18n"><span class="en" lang="en">Set up your workshop</span><span class="ja" lang="ja">仕事場を整える</span></span></span></div><div class="chip" data-k="3"><span class="cn">4</span><span class="cl"><span class="i18n"><span class="en" lang="en">The building loop</span><span class="ja" lang="ja">つくるループ</span></span></span></div></div>
 <div class="deck-chrome"><button id="themebtn" class="theme-toggle" role="switch" aria-label="Toggle light / dark" title="Toggle light / dark (t)"><span class="tt-track"><span class="tt-ico sun">&#9728;</span><span class="tt-ico moon">&#9790;</span><span class="tt-knob"></span></span></button><button id="langbtn" class="lang-toggle" role="switch" aria-label="Toggle Japanese / English" title="日本語 / English (j)"><span class="lt-track"><span class="lt-knob"></span><span class="lt-opt en">E</span><span class="lt-opt ja">J</span></span></button></div>
 <script>
 const slides=[...document.querySelectorAll('.slide')];let i=0;
@@ -581,8 +662,20 @@ const SEC=[null,null,null,null,null,null,null,null,null,null,0,0,0,0,0,0,0,0,0,0
 const segs=[...document.querySelectorAll('#segbar .fl')],chips=[...document.querySelectorAll('#minispine .chip')];
 function loc(i){const k=SEC[i];
   segs.forEach((f,s)=>f.style.transform='scaleX('+(k==null?0:(s<k?1:s===k?PROG[i]:0))+')');
-  chips.forEach(c=>c.classList.toggle('active',+c.dataset.k===k));
+  chips.forEach(c=>{const s=+c.dataset.k, here=s===k;
+    c.classList.toggle('active',here);});
   document.getElementById('minispine').style.opacity=(k==null?0:1);}
+// The whole row of chips when it fits to the right of the switches, and when it does not,
+// the row an upright screen shows: see "a row of chips too long for its screen" in
+// deck.css. A row pressed onto two lines starts at the left edge, so it fails the same
+// test. 12px is the gap the phone band leaves between the switches and the chips. Measured
+// again when the room or the names can change: the window's size, and the language.
+const chipCorner=document.querySelector('.deck-chrome');
+function fitChips(){const ms=document.getElementById('minispine');ms.classList.remove('compact');
+  ms.classList.toggle('compact',chips[0].getBoundingClientRect().left<chipCorner.getBoundingClientRect().right+12);}
+fitChips();addEventListener('resize',fitChips);
+if(document.fonts)document.fonts.ready.then(fitChips);
+new MutationObserver(fitChips).observe(root,{attributes:true,attributeFilter:['data-lang']});
 // Typewriter reveal for mono code/prompts. This is a keystroke model rather
 // than a wipe: gaps are drawn log-normally and then multiplied by what the
 // hands are actually doing (which finger, which hand, is shift held), and the

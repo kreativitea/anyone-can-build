@@ -283,6 +283,14 @@ code{font-family:var(--font-mono);background:var(--chip);padding:.1vmin .8vmin;b
   display:flex;align-items:center;justify-content:center;font-size:1.35vmin;font-weight:800}
 .minispine .chip.active{border-color:var(--accent);color:var(--ink)}
 .minispine .chip.active .cn{background:var(--accent);color:var(--on-accent)}
+/* beat dots: one per subheading inside a section, so a glance says whether we are
+   still on the same topic or have moved to the next one. Only the section we are in
+   paints them; a finished section's read as past. */
+.minispine .chip .dots{display:flex;align-items:center;gap:.55vmin;margin-left:.6vmin}
+.minispine .chip .dots i{width:.85vmin;height:.85vmin;border-radius:50%;background:var(--chip);
+  transition:background .2s,transform .2s}
+.minispine .chip .dots i.past{background:var(--muted)}
+.minispine .chip .dots i.now{background:var(--accent);transform:scale(1.45)}
 /* ---- bilingual slides (data-lang on <html>, toggled by the button or "j") ----
    A translated string ships as both languages inside one <span class="i18n">, and
    this is all that chooses between them. display:contents rather than inline is
@@ -374,6 +382,79 @@ html[data-lang="ja"] .lt-opt.ja{color:var(--on-accent)}
 /* on a deck the pair is pinned to the corner of the window, clear of the slide */
 .deck-chrome{position:fixed;top:14px;left:14px;z-index:7;display:flex;gap:8px;align-items:center}
 
+/* ---------- on a phone ----------
+   A slide is sized in vmin, so it is the same picture on a laptop and on a wall. The
+   switches are sized in px, and that is what keeps them clear of a slide on a projector
+   and puts them on top of one on a phone. When the short side of the screen is under
+   500px, the 8.6vmin a slide leaves above its kicker is about 33px, and the switches reach
+   down to 40px, so the kicker ran under them. The chips grow leftwards from the right
+   edge, so on an upright phone a long row of them (Class 5 has five sections) ran under
+   the switches from the other side. At 1.5vmin their words were under 6px tall anyway.
+
+   So on a phone the top of the screen is a band that belongs to the chrome, and the slide
+   starts below it. The chips take the switches' own size, in px, and only the section you
+   are in keeps its name: the others show their number, which is still the whole spine at a
+   glance, and the divider slides still name every section. On a phone held sideways the
+   chips share the switches' row. Upright, that row is too narrow, so they take the row
+   under it. A slide taller than the screen now loses its bottom line instead of its kicker.
+
+   One part reaches past phones. A tablet held upright had the same chips under the
+   switches, so any upright screen shows the name on the current chip only. It also had
+   slides taller than the screen, whose kicker went up under the switches, so on any
+   upright screen that slide loses its bottom instead, as on a phone. Nothing here
+   reaches a screen that is wider than it is tall and more than 500px tall. That is every
+   laptop and every projector, so a deck on a wall looks exactly as it did. All of this is
+   here because most students read the decks on a phone (publish/README.md). */
+@media (orientation:portrait),(max-height:500px){
+  /* a chip you are not in is its number and nothing around it, so the one you are in has
+     the room for its name */
+  .minispine .chip:not(.active){padding:0;border-color:transparent;background:none}
+  .minispine .chip:not(.active) .cl,.minispine .chip:not(.active) .dots{display:none}
+  /* safe: a slide taller than the screen loses its bottom, not its kicker */
+  .slide{justify-content:safe center}
+  /* a pinned title (.stage-top) starts where every other slide starts, on the line that
+     clears the chips: at 8vmin a big title was touching the chip above it. A phone moves
+     it again, below its band */
+  .stage-top{top:8.6vmin}
+}
+@media (max-width:500px),(max-height:500px){
+  .minispine{top:14px;left:142px;justify-content:flex-end;gap:4px}
+  .minispine .chip{flex:none;height:26px;padding:0 9px 0 3px;gap:5px;border-width:1px;font-size:10.5px}
+  .minispine .chip .cn{width:18px;height:18px;font-size:10px}
+  .minispine .chip .dots{gap:3px;margin-left:1px}
+  .minispine .chip .dots i{width:5px;height:5px}
+  /* a name too long for the row ends in "…" rather than pushing the row under the switches.
+     Only the name gives way: the number stays round and the dots keep their size */
+  .minispine .chip.active{flex:0 1 auto;min-width:0}
+  .minispine .chip.active .cl{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .minispine .chip .cn,.minispine .chip .dots{flex:none}
+  /* 8px under the band, about the gap between the chips and the slide on a projector */
+  .slide{padding-top:48px}
+  .stage-top{top:48px}
+}
+@media (max-width:500px) and (orientation:portrait){
+  /* a row of its own, which is chrome, so it keeps the switches' 14px from the edge */
+  .minispine{top:48px;left:14px;right:14px}
+  .slide{padding-top:82px}
+  .stage-top{top:82px}
+}
+
+/* ---------- a row of chips too long for its screen ----------
+   A row is as long as its section names. Every deck's row but one is 82vmin or less, and
+   fits beside the switches on a 4:3 screen. Class 5's five names come to 127vmin, and with
+   its 9vmin margin that is wider than a 4:3 screen, which is 133vmin across. There the row
+   pressed its names onto two lines, ran under the switches, and came down over the kicker,
+   in presentation mode too, where the switches are hidden.
+
+   So wherever the whole row does not fit to the right of the switches, it becomes the row an
+   upright screen shows: the section you are in keeps its name and its dots, and the others
+   show their number. The screen's shape cannot tell when that is, because only the names
+   know how long they are, so the deck measures and sets .compact (fitChips, in
+   build-deck.js). Every deck's row fits on a 16:9 or 16:10 screen, so a projector of those
+   shapes never sees this. Without the script the whole row shows, as it always did. */
+.minispine.compact .chip:not(.active){padding:0;border-color:transparent;background:none}
+.minispine.compact .chip:not(.active) .cl,.minispine.compact .chip:not(.active) .dots{display:none}
+
 /* ---------- presentation mode ----------
    Set on <html> by either of the two things that mean "this deck is in front of a room":
    the presenter window being open (press "s") and full screen (press "f"). Each sets its
@@ -437,7 +518,7 @@ html:is([data-present],[data-full]) .slide.rvhas .foot span:first-child::after{c
 <section class="slide" data-sid="from-next-friday-every-class-opens-here" data-type="raw"><div class="kicker"><span class="i18n"><span class="en" lang="en">From next Friday, every class opens here</span><span class="ja" lang="ja">来週の金曜から、毎回の授業はここから始まる</span></span></div><div style="display:flex;justify-content:center;margin:auto 0"><svg viewBox="0 0 1200 620" style="width:94vw;max-height:60vh" role="img"><circle cx="600" cy="300" r="208" fill="none" stroke="var(--line)" stroke-width="4" stroke-dasharray="11 10"/><polygon points="-8.68,-7.700000000000001 8.68,-7.700000000000001 0,14" fill="var(--muted)" transform="translate(722.2593324768344,131.72446517001094) rotate(-54)"/><polygon points="-8.68,-7.700000000000001 8.68,-7.700000000000001 0,14" fill="var(--muted)" transform="translate(797.819755389392,364.27553482998906) rotate(18)"/><polygon points="-8.68,-7.700000000000001 8.68,-7.700000000000001 0,14" fill="var(--muted)" transform="translate(600,508) rotate(90)"/><polygon points="-8.68,-7.700000000000001 8.68,-7.700000000000001 0,14" fill="var(--muted)" transform="translate(402.18024461060804,364.27553482998906) rotate(162)"/><polygon points="-8.68,-7.700000000000001 8.68,-7.700000000000001 0,14" fill="var(--muted)" transform="translate(477.7406675231656,131.72446517001094) rotate(234)"/><circle cx="600" cy="92" r="64" fill="var(--accent)" stroke="var(--accent)" stroke-width="3.5"/><text x="600" y="100" text-anchor="middle" font-family="var(--font-sans)" font-size="25" font-weight="800" fill="var(--on-accent)">Idea</text><text x="600" y="14" text-anchor="middle" font-family="var(--font-sans)" font-size="18" font-weight="600" fill="var(--muted)">what problem, and for whom</text><circle cx="797.819755389392" cy="235.72446517001094" r="56" fill="var(--chip)" stroke="var(--line)" stroke-width="3.5"/><text x="797.819755389392" y="243.72446517001094" text-anchor="middle" font-family="var(--font-sans)" font-size="23" font-weight="800" fill="var(--ink)">Design</text><text x="871.819755389392" y="241.72446517001094" text-anchor="start" font-family="var(--font-sans)" font-size="18" font-weight="600" fill="var(--muted)">what it will be, and what it will not be</text><circle cx="722.2593324768344" cy="468.27553482998906" r="56" fill="var(--chip)" stroke="var(--line)" stroke-width="3.5"/><text x="722.2593324768344" y="476.27553482998906" text-anchor="middle" font-family="var(--font-sans)" font-size="23" font-weight="800" fill="var(--ink)">Build</text><text x="796.2593324768344" y="474.27553482998906" text-anchor="start" font-family="var(--font-sans)" font-size="18" font-weight="600" fill="var(--muted)">the smallest version that actually works</text><circle cx="477.7406675231656" cy="468.27553482998906" r="56" fill="var(--chip)" stroke="var(--line)" stroke-width="3.5"/><text x="477.7406675231656" y="476.27553482998906" text-anchor="middle" font-family="var(--font-sans)" font-size="23" font-weight="800" fill="var(--ink)">Prod</text><text x="403.7406675231656" y="474.27553482998906" text-anchor="end" font-family="var(--font-sans)" font-size="18" font-weight="600" fill="var(--muted)">it is live, and strangers are using it</text><circle cx="402.18024461060804" cy="235.7244651700109" r="56" fill="var(--chip)" stroke="var(--line)" stroke-width="3.5"/><text x="402.18024461060804" y="243.7244651700109" text-anchor="middle" font-family="var(--font-sans)" font-size="23" font-weight="800" fill="var(--ink)">Analysis</text><text x="328.18024461060804" y="241.7244651700109" text-anchor="end" font-family="var(--font-sans)" font-size="18" font-weight="600" fill="var(--muted)">did it work?</text><text x="600" y="290" text-anchor="middle" font-family="var(--font-sans)" font-size="30" font-weight="800" fill="var(--ink)">SDLC</text><text x="600" y="322" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">the life of a piece of software</text><text x="600" y="348" text-anchor="middle" font-family="var(--font-sans)" font-size="30" font-weight="600" fill="var(--muted)">&#8635;</text></svg></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en"><b>Where are we on the loop?</b> &nbsp;&middot;&nbsp; <b>What is the one decision in front of you this week?</b><br>Two minutes &middot; every Friday</span><span class="ja" lang="ja"><b>いま ループのどこにいるか？</b> &nbsp;&middot;&nbsp; <b>今週、目の前にある判断は何か？</b><br>2分 &middot; 毎週金曜</span></span></div><div class="foot"><span>Anyone Can Build · Class 4</span><span>22 / 25</span></div></section>
 <section class="slide" data-sid="before-next-friday" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">Before next Friday</span><span class="ja" lang="ja">次の金曜までに</span></span></div><ul class="big"><li><span class="i18n"><span class="en" lang="en"><b>Do:</b> if your partner's page did not meet their success line, finish it, push, and ask them to try it again</span><span class="ja" lang="ja"><b>やる：</b> 相手のページが相手の成功ラインを満たさなかったら、仕上げてプッシュし、もう一度試してもらう</span></span></li><li><span class="i18n"><span class="en" lang="en"><b>Do:</b> complete today's tracker entry, in your <code>anyone-can-build-tracker</code> repository</span><span class="ja" lang="ja"><b>やる：</b> 今日のトラッカーの記入を <code>anyone-can-build-tracker</code> リポジトリで完成させる</span></span></li><li><span class="i18n"><span class="en" lang="en"><b>Do:</b> map <b>both</b> of your throwaways onto the five stages</span><span class="ja" lang="ja"><b>やる：</b> <b>二つ</b>の使い捨てを五つの段階に対応づける</span></span></li><li><span class="i18n"><span class="en" lang="en"><b>Read:</b> AWS, &ldquo;What is SDLC?&rdquo;</span><span class="ja" lang="ja"><b>読む：</b> AWS「What is SDLC?」</span></span></li><li><span class="i18n"><span class="en" lang="en">Plus one short thing I will post after class</span><span class="ja" lang="ja">加えて、授業後に短いものを一つ載せる</span></span></li></ul><div class="foot"><span>Anyone Can Build · Class 4</span><span>23 / 25</span></div></section>
 <section class="slide" data-sid="the-one-tool-in-your-workshop-that" data-type="statement"><div class="center" style="margin:auto"><div class="kicker"><span class="i18n"><span class="en" lang="en">What's next</span><span class="ja" lang="ja">次回</span></span></div><div class="big-statement"><span class="i18n"><span class="en" lang="en">The one tool in your workshop that is <b>not</b> deterministic.</span><span class="ja" lang="ja">あなたの仕事場で、唯一<b>決定論的でない</b>道具。</span></span></div><div class="sub"><span class="i18n"><span class="en" lang="en">Next Friday: <i>What is AI?</i><br>Then <i>the classifier build</i> &mdash; &ldquo;did it work?&rdquo; answered with a <b>percentage</b>.</span><span class="ja" lang="ja">次の金曜：<i>What is AI?</i><br>そのあと <i>the classifier build</i> &mdash; 「うまくいったか？」に<b>割合</b>で答える。</span></span></div></div><div class="foot"><span>Anyone Can Build · Class 4</span><span>24 / 25</span></div></section>
-<section class="slide close" data-sid="last-week-you-made-something-today-you" data-type="close"><div class="center" style="margin:auto"><div class="tag"><span class="i18n"><span class="en" lang="en">Anyone can build.</span><span class="ja" lang="ja">誰でもつくれる。</span></span></div><div class="big-statement" style="margin-top:3vmin"><span class="i18n"><span class="en" lang="en">Last week you made something. Today you went all the way around.</span><span class="ja" lang="ja">先週、あなたは何かをつくった。今日、あなたは最後まで一周した。</span></span></div></div><div class="foot"><span>Anyone Can Build · Class 4</span><span>25 / 25</span></div></section></div><div class="segbar" id="segbar"><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div></div><div class="minispine" id="minispine"><div class="chip" data-k="0"><span class="cn">1</span><span class="i18n"><span class="en" lang="en">Name the loop</span><span class="ja" lang="ja">ループに名前をつける</span></span></div><div class="chip" data-k="1"><span class="cn">2</span><span class="i18n"><span class="en" lang="en">Walk the loop</span><span class="ja" lang="ja">ループを一周する</span></span></div></div>
+<section class="slide close" data-sid="last-week-you-made-something-today-you" data-type="close"><div class="center" style="margin:auto"><div class="tag"><span class="i18n"><span class="en" lang="en">Anyone can build.</span><span class="ja" lang="ja">誰でもつくれる。</span></span></div><div class="big-statement" style="margin-top:3vmin"><span class="i18n"><span class="en" lang="en">Last week you made something. Today you went all the way around.</span><span class="ja" lang="ja">先週、あなたは何かをつくった。今日、あなたは最後まで一周した。</span></span></div></div><div class="foot"><span>Anyone Can Build · Class 4</span><span>25 / 25</span></div></section></div><div class="segbar" id="segbar"><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div></div><div class="minispine" id="minispine"><div class="chip" data-k="0"><span class="cn">1</span><span class="cl"><span class="i18n"><span class="en" lang="en">Name the loop</span><span class="ja" lang="ja">ループに名前をつける</span></span></span></div><div class="chip" data-k="1"><span class="cn">2</span><span class="cl"><span class="i18n"><span class="en" lang="en">Walk the loop</span><span class="ja" lang="ja">ループを一周する</span></span></span></div></div>
 <div class="deck-chrome"><button id="themebtn" class="theme-toggle" role="switch" aria-label="Toggle light / dark" title="Toggle light / dark (t)"><span class="tt-track"><span class="tt-ico sun">&#9728;</span><span class="tt-ico moon">&#9790;</span><span class="tt-knob"></span></span></button><button id="langbtn" class="lang-toggle" role="switch" aria-label="Toggle Japanese / English" title="日本語 / English (j)"><span class="lt-track"><span class="lt-knob"></span><span class="lt-opt en">E</span><span class="lt-opt ja">J</span></span></button></div>
 <script>
 const slides=[...document.querySelectorAll('.slide')];let i=0;
@@ -484,8 +565,20 @@ const SEC=[null,null,null,null,null,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],PRO
 const segs=[...document.querySelectorAll('#segbar .fl')],chips=[...document.querySelectorAll('#minispine .chip')];
 function loc(i){const k=SEC[i];
   segs.forEach((f,s)=>f.style.transform='scaleX('+(k==null?0:(s<k?1:s===k?PROG[i]:0))+')');
-  chips.forEach(c=>c.classList.toggle('active',+c.dataset.k===k));
+  chips.forEach(c=>{const s=+c.dataset.k, here=s===k;
+    c.classList.toggle('active',here);});
   document.getElementById('minispine').style.opacity=(k==null?0:1);}
+// The whole row of chips when it fits to the right of the switches, and when it does not,
+// the row an upright screen shows: see "a row of chips too long for its screen" in
+// deck.css. A row pressed onto two lines starts at the left edge, so it fails the same
+// test. 12px is the gap the phone band leaves between the switches and the chips. Measured
+// again when the room or the names can change: the window's size, and the language.
+const chipCorner=document.querySelector('.deck-chrome');
+function fitChips(){const ms=document.getElementById('minispine');ms.classList.remove('compact');
+  ms.classList.toggle('compact',chips[0].getBoundingClientRect().left<chipCorner.getBoundingClientRect().right+12);}
+fitChips();addEventListener('resize',fitChips);
+if(document.fonts)document.fonts.ready.then(fitChips);
+new MutationObserver(fitChips).observe(root,{attributes:true,attributeFilter:['data-lang']});
 // Typewriter reveal for mono code/prompts. This is a keystroke model rather
 // than a wipe: gaps are drawn log-normally and then multiplied by what the
 // hands are actually doing (which finger, which hand, is shift held), and the

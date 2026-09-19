@@ -283,6 +283,14 @@ code{font-family:var(--font-mono);background:var(--chip);padding:.1vmin .8vmin;b
   display:flex;align-items:center;justify-content:center;font-size:1.35vmin;font-weight:800}
 .minispine .chip.active{border-color:var(--accent);color:var(--ink)}
 .minispine .chip.active .cn{background:var(--accent);color:var(--on-accent)}
+/* beat dots: one per subheading inside a section, so a glance says whether we are
+   still on the same topic or have moved to the next one. Only the section we are in
+   paints them; a finished section's read as past. */
+.minispine .chip .dots{display:flex;align-items:center;gap:.55vmin;margin-left:.6vmin}
+.minispine .chip .dots i{width:.85vmin;height:.85vmin;border-radius:50%;background:var(--chip);
+  transition:background .2s,transform .2s}
+.minispine .chip .dots i.past{background:var(--muted)}
+.minispine .chip .dots i.now{background:var(--accent);transform:scale(1.45)}
 /* ---- bilingual slides (data-lang on <html>, toggled by the button or "j") ----
    A translated string ships as both languages inside one <span class="i18n">, and
    this is all that chooses between them. display:contents rather than inline is
@@ -373,6 +381,79 @@ html[data-lang="ja"] .lt-opt.ja{color:var(--on-accent)}
 /* ==/toggles== */
 /* on a deck the pair is pinned to the corner of the window, clear of the slide */
 .deck-chrome{position:fixed;top:14px;left:14px;z-index:7;display:flex;gap:8px;align-items:center}
+
+/* ---------- on a phone ----------
+   A slide is sized in vmin, so it is the same picture on a laptop and on a wall. The
+   switches are sized in px, and that is what keeps them clear of a slide on a projector
+   and puts them on top of one on a phone. When the short side of the screen is under
+   500px, the 8.6vmin a slide leaves above its kicker is about 33px, and the switches reach
+   down to 40px, so the kicker ran under them. The chips grow leftwards from the right
+   edge, so on an upright phone a long row of them (Class 5 has five sections) ran under
+   the switches from the other side. At 1.5vmin their words were under 6px tall anyway.
+
+   So on a phone the top of the screen is a band that belongs to the chrome, and the slide
+   starts below it. The chips take the switches' own size, in px, and only the section you
+   are in keeps its name: the others show their number, which is still the whole spine at a
+   glance, and the divider slides still name every section. On a phone held sideways the
+   chips share the switches' row. Upright, that row is too narrow, so they take the row
+   under it. A slide taller than the screen now loses its bottom line instead of its kicker.
+
+   One part reaches past phones. A tablet held upright had the same chips under the
+   switches, so any upright screen shows the name on the current chip only. It also had
+   slides taller than the screen, whose kicker went up under the switches, so on any
+   upright screen that slide loses its bottom instead, as on a phone. Nothing here
+   reaches a screen that is wider than it is tall and more than 500px tall. That is every
+   laptop and every projector, so a deck on a wall looks exactly as it did. All of this is
+   here because most students read the decks on a phone (publish/README.md). */
+@media (orientation:portrait),(max-height:500px){
+  /* a chip you are not in is its number and nothing around it, so the one you are in has
+     the room for its name */
+  .minispine .chip:not(.active){padding:0;border-color:transparent;background:none}
+  .minispine .chip:not(.active) .cl,.minispine .chip:not(.active) .dots{display:none}
+  /* safe: a slide taller than the screen loses its bottom, not its kicker */
+  .slide{justify-content:safe center}
+  /* a pinned title (.stage-top) starts where every other slide starts, on the line that
+     clears the chips: at 8vmin a big title was touching the chip above it. A phone moves
+     it again, below its band */
+  .stage-top{top:8.6vmin}
+}
+@media (max-width:500px),(max-height:500px){
+  .minispine{top:14px;left:142px;justify-content:flex-end;gap:4px}
+  .minispine .chip{flex:none;height:26px;padding:0 9px 0 3px;gap:5px;border-width:1px;font-size:10.5px}
+  .minispine .chip .cn{width:18px;height:18px;font-size:10px}
+  .minispine .chip .dots{gap:3px;margin-left:1px}
+  .minispine .chip .dots i{width:5px;height:5px}
+  /* a name too long for the row ends in "…" rather than pushing the row under the switches.
+     Only the name gives way: the number stays round and the dots keep their size */
+  .minispine .chip.active{flex:0 1 auto;min-width:0}
+  .minispine .chip.active .cl{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .minispine .chip .cn,.minispine .chip .dots{flex:none}
+  /* 8px under the band, about the gap between the chips and the slide on a projector */
+  .slide{padding-top:48px}
+  .stage-top{top:48px}
+}
+@media (max-width:500px) and (orientation:portrait){
+  /* a row of its own, which is chrome, so it keeps the switches' 14px from the edge */
+  .minispine{top:48px;left:14px;right:14px}
+  .slide{padding-top:82px}
+  .stage-top{top:82px}
+}
+
+/* ---------- a row of chips too long for its screen ----------
+   A row is as long as its section names. Every deck's row but one is 82vmin or less, and
+   fits beside the switches on a 4:3 screen. Class 5's five names come to 127vmin, and with
+   its 9vmin margin that is wider than a 4:3 screen, which is 133vmin across. There the row
+   pressed its names onto two lines, ran under the switches, and came down over the kicker,
+   in presentation mode too, where the switches are hidden.
+
+   So wherever the whole row does not fit to the right of the switches, it becomes the row an
+   upright screen shows: the section you are in keeps its name and its dots, and the others
+   show their number. The screen's shape cannot tell when that is, because only the names
+   know how long they are, so the deck measures and sets .compact (fitChips, in
+   build-deck.js). Every deck's row fits on a 16:9 or 16:10 screen, so a projector of those
+   shapes never sees this. Without the script the whole row shows, as it always did. */
+.minispine.compact .chip:not(.active){padding:0;border-color:transparent;background:none}
+.minispine.compact .chip:not(.active) .cl,.minispine.compact .chip:not(.active) .dots{display:none}
 
 /* ---------- presentation mode ----------
    Set on <html> by either of the two things that mean "this deck is in front of a room":
@@ -699,7 +780,7 @@ html:is([data-present],[data-full]) .slide.rvhas .foot span:first-child::after{c
 <section class="slide" data-sid="two-kinds-of-software" data-type="raw" data-show="1"><h1><span class="i18n"><span class="en" lang="en">Two kinds of software</span><span class="ja" lang="ja">二種類のソフトウェア</span></span></h1><div style="display:flex;gap:5vmin;width:100%;align-items:flex-start;margin-top:3vmin"><div style="flex:1 1 0;min-width:0"><div style="font-family:var(--font-mono);font-size:2.4vmin;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:1.6vmin">Deterministic &mdash; the software you build</div><div style="padding:1.1vmin 0;border-top:.2vmin solid var(--line);font-size:2.8vmin">Same input &rarr; same output</div><div style="padding:1.1vmin 0;border-top:.2vmin solid var(--line);font-size:2.8vmin">Exact</div><div style="padding:1.1vmin 0;border-top:.2vmin solid var(--line);font-size:2.8vmin">A check, once passed, <b>stays passed</b></div></div><div style="flex:1 1 0;min-width:0"><div style="font-family:var(--font-mono);font-size:2.4vmin;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:1.6vmin">Probabilistic &mdash; ???</div><div style="padding:1.1vmin 0;border-top:.2vmin solid var(--line);font-size:2.8vmin"><span class="ghost">the AI you're using</span></div><div style="padding:1.1vmin 0;border-top:.2vmin solid var(--line);font-size:2.8vmin"><span class="ghost">same input, maybe different output</span></div><div style="padding:1.1vmin 0;border-top:.2vmin solid var(--line);font-size:2.8vmin"><span class="ghost">&hellip; next time</span></div></div></div><div class="foot"><span>Anyone Can Build · Class 3</span><span>68 / 71</span></div></section>
 <section class="slide" data-sid="what-we-covered" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">What we covered</span><span class="ja" lang="ja">何を扱ったか</span></span></div><ul class="big"><li class="check"><span class="i18n"><span class="en" lang="en">Read code you didn't write &mdash; and <b>check it by watching its output</b></span><span class="ja" lang="ja">自分が書いていないコードを読む &mdash; そして<b>出力を見て確かめる</b></span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">Software is a <b>knowable machine</b> (same input &rarr; same output)</span><span class="ja" lang="ja">ソフトウェアは<b>知ることのできる機械</b>（同じ入力 &rarr; 同じ出力）</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">Trace a click, front to back, across <b>two computers</b> &mdash; and you watched one go</span><span class="ja" lang="ja">クリックを前から後ろまで、<b>二台のコンピュータ</b>をまたいで追う &mdash; しかも出ていくのを見た</span></span></li></ul><div class="foot"><span>Anyone Can Build · Class 3</span><span>69 / 71</span></div></section>
 <section class="slide" data-sid="whats-next" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">What's next</span><span class="ja" lang="ja">次は何か</span></span></div><ul class="big"><li><span class="i18n"><span class="en" lang="en">Next period &mdash; <b>The SDLC studio</b>: name the whole lifecycle</span><span class="ja" lang="ja">次の時限 &mdash; <b>SDLCスタジオ</b>：ライフサイクル全体に名前をつける</span></span></li><li><span class="i18n"><span class="en" lang="en">Later this term &mdash; testing, a whole session of it</span><span class="ja" lang="ja">学期の後半 &mdash; テスト。一回まるごと</span></span></li><li><span class="i18n"><span class="en" lang="en">Soon &mdash; <b>What is AI?</b>: the one tool that <i>isn't</i> deterministic</span><span class="ja" lang="ja">まもなく &mdash; <b>AIとは何か</b>：決定論的で<i>ない</i>唯一の道具</span></span></li></ul><div class="foot"><span>Anyone Can Build · Class 3</span><span>70 / 71</span></div></section>
-<section class="slide close" data-sid="code-is-not-magic-it-does-exactly" data-type="close"><div class="center" style="margin:auto"><div class="tag"><span class="i18n"><span class="en" lang="en">Anyone can build.</span><span class="ja" lang="ja">誰でもつくれる。</span></span></div><div class="big-statement" style="margin-top:3vmin"><span class="i18n"><span class="en" lang="en">Code is not magic.<br>It does exactly what you ask it to do.</span><span class="ja" lang="ja">コードは魔法ではない。<br>頼んだとおりのことを、そのとおりに行う。</span></span></div><div class="sub" style="margin-top:2.4vmin"><span class="i18n"><span class="en" lang="en">And you are allowed to open it.</span><span class="ja" lang="ja">そして、それを開いてよい。</span></span></div></div><div class="foot"><span>Anyone Can Build · Class 3</span><span>71 / 71</span></div></section></div><div class="segbar" id="segbar"><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div></div><div class="minispine" id="minispine"><div class="chip" data-k="0"><span class="cn">1</span><span class="i18n"><span class="en" lang="en">Reading & testing code</span><span class="ja" lang="ja">コードを読み、テストする</span></span></div><div class="chip" data-k="1"><span class="cn">2</span><span class="i18n"><span class="en" lang="en">Behind the scenes</span><span class="ja" lang="ja">舞台裏</span></span></div></div>
+<section class="slide close" data-sid="code-is-not-magic-it-does-exactly" data-type="close"><div class="center" style="margin:auto"><div class="tag"><span class="i18n"><span class="en" lang="en">Anyone can build.</span><span class="ja" lang="ja">誰でもつくれる。</span></span></div><div class="big-statement" style="margin-top:3vmin"><span class="i18n"><span class="en" lang="en">Code is not magic.<br>It does exactly what you ask it to do.</span><span class="ja" lang="ja">コードは魔法ではない。<br>頼んだとおりのことを、そのとおりに行う。</span></span></div><div class="sub" style="margin-top:2.4vmin"><span class="i18n"><span class="en" lang="en">And you are allowed to open it.</span><span class="ja" lang="ja">そして、それを開いてよい。</span></span></div></div><div class="foot"><span>Anyone Can Build · Class 3</span><span>71 / 71</span></div></section></div><div class="segbar" id="segbar"><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div></div><div class="minispine" id="minispine"><div class="chip" data-k="0"><span class="cn">1</span><span class="cl"><span class="i18n"><span class="en" lang="en">Reading & testing code</span><span class="ja" lang="ja">コードを読み、テストする</span></span></span></div><div class="chip" data-k="1"><span class="cn">2</span><span class="cl"><span class="i18n"><span class="en" lang="en">Behind the scenes</span><span class="ja" lang="ja">舞台裏</span></span></span></div></div>
 <div class="deck-chrome"><button id="themebtn" class="theme-toggle" role="switch" aria-label="Toggle light / dark" title="Toggle light / dark (t)"><span class="tt-track"><span class="tt-ico sun">&#9728;</span><span class="tt-ico moon">&#9790;</span><span class="tt-knob"></span></span></button><button id="langbtn" class="lang-toggle" role="switch" aria-label="Toggle Japanese / English" title="日本語 / English (j)"><span class="lt-track"><span class="lt-knob"></span><span class="lt-opt en">E</span><span class="lt-opt ja">J</span></span></button></div>
 <script>
 const slides=[...document.querySelectorAll('.slide')];let i=0;
@@ -746,8 +827,20 @@ const SEC=[null,null,null,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 const segs=[...document.querySelectorAll('#segbar .fl')],chips=[...document.querySelectorAll('#minispine .chip')];
 function loc(i){const k=SEC[i];
   segs.forEach((f,s)=>f.style.transform='scaleX('+(k==null?0:(s<k?1:s===k?PROG[i]:0))+')');
-  chips.forEach(c=>c.classList.toggle('active',+c.dataset.k===k));
+  chips.forEach(c=>{const s=+c.dataset.k, here=s===k;
+    c.classList.toggle('active',here);});
   document.getElementById('minispine').style.opacity=(k==null?0:1);}
+// The whole row of chips when it fits to the right of the switches, and when it does not,
+// the row an upright screen shows: see "a row of chips too long for its screen" in
+// deck.css. A row pressed onto two lines starts at the left edge, so it fails the same
+// test. 12px is the gap the phone band leaves between the switches and the chips. Measured
+// again when the room or the names can change: the window's size, and the language.
+const chipCorner=document.querySelector('.deck-chrome');
+function fitChips(){const ms=document.getElementById('minispine');ms.classList.remove('compact');
+  ms.classList.toggle('compact',chips[0].getBoundingClientRect().left<chipCorner.getBoundingClientRect().right+12);}
+fitChips();addEventListener('resize',fitChips);
+if(document.fonts)document.fonts.ready.then(fitChips);
+new MutationObserver(fitChips).observe(root,{attributes:true,attributeFilter:['data-lang']});
 // Typewriter reveal for mono code/prompts. This is a keystroke model rather
 // than a wipe: gaps are drawn log-normally and then multiplied by what the
 // hands are actually doing (which finger, which hand, is shift held), and the
