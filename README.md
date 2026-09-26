@@ -20,6 +20,8 @@ what to read or watch afterwards, and the demos built in front of the room.
 | `class-04/` | Class 4 — Studio: the SDLC + second fast loop |
 | `class-05/` | Class 5 — What is AI? |
 | `class-06/` | Class 6 — Studio: classifier build |
+| `class-07/` | Class 7 — Where your work lives |
+| `class-08/` | Class 8 — Studio: commit to your problem |
 | `demos/day-trip-planner/` | Easy Peasy Vacation Planning |
 | <https://kreativitea.github.io/kg-class-demo/> | Earthquakes around Japan |
 
