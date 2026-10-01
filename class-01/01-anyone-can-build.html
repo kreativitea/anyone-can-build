@@ -660,8 +660,12 @@ function fullToggle(doc){
 tbtn.addEventListener('click',e=>{e.stopPropagation(); toggleTheme();}); paintTheme();
 const SEC=[null,null,null,null,null,null,null,null,null,null,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3],PROG=[0,0,0,0,0,0,0,0,0,0,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1,0.06666666666666667,0.13333333333333333,0.2,0.26666666666666666,0.3333333333333333,0.4,0.4666666666666667,0.5333333333333333,0.6,0.6666666666666666,0.7333333333333333,0.8,0.8666666666666667,0.9333333333333333,1,0.125,0.25,0.375,0.5,0.625,0.75,0.875,1,0.09090909090909091,0.18181818181818182,0.2727272727272727,0.36363636363636365,0.45454545454545453,0.5454545454545454,0.6363636363636364,0.7272727272727273,0.8181818181818182,0.9090909090909091,1];
 const segs=[...document.querySelectorAll('#segbar .fl')],chips=[...document.querySelectorAll('#minispine .chip')];
+// Only the segment of the section we are in animates. The others change at once, so
+// a deck opened in the middle, or a jump across sections, does not sweep every
+// finished segment full together.
 function loc(i){const k=SEC[i];
-  segs.forEach((f,s)=>f.style.transform='scaleX('+(k==null?0:(s<k?1:s===k?PROG[i]:0))+')');
+  segs.forEach((f,s)=>{f.style.transition=(s===k)?'':'none';
+    f.style.transform='scaleX('+(k==null?0:(s<k?1:s===k?PROG[i]:0))+')';});
   chips.forEach(c=>{const s=+c.dataset.k, here=s===k;
     c.classList.toggle('active',here);});
   document.getElementById('minispine').style.opacity=(k==null?0:1);}
