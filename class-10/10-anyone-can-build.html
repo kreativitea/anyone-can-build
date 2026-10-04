@@ -1,0 +1,985 @@
+<!DOCTYPE html><html lang="en" data-theme="dark" data-lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Class 10 — Software architecture: the backend and the frontend</title>
+<style>/* Anyone Can Build — shared deck styles.
+   Scheme: Solarized, with a light/dark toggle (data-theme on <html>).
+   Type system, three registers: sans = presentation (the deck speaking); mono = the
+   "machine voice" (code, prompts, commands, labels/chrome); voice = the handwritten
+   register, reserved for verbatim words that belong to a person, shown as an artifact
+   (a journal entry, a user's sentence). Projector-friendly; no web fonts (system
+   stacks) — the voice stack leans on the education hands the OS ships: Klee on macOS,
+   UD Digi Kyokasho on Windows, both covering Japanese and Latin in one face. */
+:root{
+  --font-sans:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Roboto Mono","Liberation Mono",monospace;
+  --font-voice:"Klee","UD Digi Kyokasho N-R","UD デジタル 教科書体 N-R","Segoe Print","Bradley Hand","Chalkboard SE",cursive;
+  /* Solarized Light (default) */
+  --paper:#fdf6e3; --panel:#fffdf6; --ink:#073642; --muted:#657b83;
+  --line:#e7e0c9; --chip:#efe8d0; --code-bg:#eee8d5;
+  --accent:#268bd2; --accent-2:#2aa198; --good:#859900; --bad:#dc322f;
+  --on-accent:#ffffff; --accent-glow:rgba(38,139,210,.18);
+  /* Solarized's own orange and violet. Added for the restaurant floor plan, which
+     needs a third and fourth hue that are not "good" or "bad": the front is accent,
+     the back is orange, the guest is good, and the office (later decks) is violet.
+     Solarized keeps its accents identical across both themes, so these are defined once. */
+  --orange:#cb4b16; --violet:#6c71c4;
+}
+html[data-theme="dark"]{
+  /* Solarized Dark */
+  --paper:#002b36; --panel:#073642; --ink:#eee8d5; --muted:#93a1a1;
+  --line:#0e4b59; --chip:#083f4c; --code-bg:#052d38;
+  --accent:#289be2; --accent-2:#2aa198; --good:#93a300; --bad:#dc322f;
+  --on-accent:#002b36; --accent-glow:rgba(40,155,226,.30);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#0a0a0a;color:var(--ink);
+  font-family:var(--font-sans);-webkit-font-smoothing:antialiased}
+#deck{position:fixed;inset:0}
+.slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+  padding:8.6vmin 9vmin 9vmin;background:var(--paper);overflow:hidden}  /* top pad clears the mini-spine chips */
+.slide.active{display:flex}
+.slide h1{font-size:6.2vmin;line-height:1.05;letter-spacing:-.01em}
+.slide h2{font-size:4.4vmin;line-height:1.1;letter-spacing:-.01em}
+/* kicker / eyebrow: the "label" voice — mono */
+.kicker{font-family:var(--font-mono);font-size:2.1vmin;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--accent);font-weight:700;margin-bottom:2.4vmin}
+.sub{font-size:2.6vmin;color:var(--muted);margin-top:2.2vmin;line-height:1.4}
+.meta{position:absolute;bottom:6vmin;left:9vmin;font-size:2vmin;color:var(--muted)}
+ul.big{list-style:none;margin-top:3vmin;display:flex;flex-direction:column;gap:2.4vmin}
+ul.big li{font-size:3.2vmin;line-height:1.3;padding-left:5vmin;position:relative}
+ul.big li::before{content:"";position:absolute;left:0;top:1.4vmin;width:2.4vmin;height:2.4vmin;border-radius:50%;background:var(--accent)}
+ul.big li.check::before{background:var(--good)}
+/* ol.big — the same list with numbers instead of dots. The number is the item's identity
+   when a later slide names it ("4 and 5"), so it is drawn as a chip rather than left to
+   the browser's own numbering. */
+ol.big{list-style:none;counter-reset:n;margin-top:3vmin;display:flex;flex-direction:column;gap:2.4vmin}
+ol.big li{counter-increment:n;font-size:3.2vmin;line-height:1.3;padding-left:5vmin;position:relative}
+ol.big li::before{content:counter(n);position:absolute;left:0;top:.1vmin;width:3.4vmin;height:3.4vmin;
+  border-radius:50%;background:var(--accent);color:var(--on-accent);font-family:var(--font-mono);
+  font-size:2vmin;font-weight:800;display:flex;align-items:center;justify-content:center}
+/* checklist: a single clean checkbox per row */
+/* a link on a heading: sized in em so it tracks the heading in any language */
+.extlink{display:inline-block;margin-left:.34em;line-height:0;vertical-align:baseline}
+.extlink svg{width:.58em;height:.58em;fill:none;stroke:var(--accent);stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+.extlink:hover svg{stroke:var(--accent-2)}
+.check-list{list-style:none;margin-top:3vmin;display:flex;flex-direction:column;gap:2.2vmin}
+.check-list li{font-size:3vmin;line-height:1.3;padding-left:5.6vmin;position:relative}
+.check-list li::before{content:"";position:absolute;left:0;top:.3vmin;width:3vmin;height:3vmin;
+  border:.4vmin solid var(--accent);border-radius:.5vmin;background:var(--panel)}
+.center{align-items:center;text-align:center}
+.center .sub{max-width:70vw;margin-left:auto;margin-right:auto}
+.big-statement{font-size:8vmin;line-height:1.03;letter-spacing:-.02em;font-weight:800}
+/* a command as the big line: it is the machine speaking, so it takes the mono register
+   and drops a step in size, since mono runs wider than the sans at the same point. */
+.big-statement code{font-family:var(--font-mono);font-size:.78em;font-weight:700;letter-spacing:0}
+/* a list that IS the big statement, rather than a list sitting under one: the items
+   carry the slide, so they take the statement's weight instead of the list's. */
+.big-statement ul.big{margin-top:0;gap:1.6vmin;align-items:flex-start;display:inline-flex}
+.big-statement ul.big li{font-size:6vmin;padding-left:8vmin}
+.big-statement ul.big li::before{top:2.4vmin;width:3.6vmin;height:3.6vmin}
+.tag{display:inline-block;font-family:var(--font-mono);font-size:2.4vmin;font-weight:700;color:var(--on-accent);
+  background:var(--accent);padding:.6vmin 1.9vmin;border-radius:10vmin;letter-spacing:.04em}
+/* agenda + spine */
+.agenda{display:flex;flex-direction:column;gap:2.6vmin;margin-top:2vmin}
+.agenda .item{display:flex;align-items:center;gap:2.4vmin;font-size:3.6vmin}
+.agenda .n{width:6vmin;height:6vmin;border-radius:50%;background:var(--chip);color:var(--accent);
+  font-family:var(--font-mono);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:3vmin;flex:0 0 auto}
+.spine{display:flex;gap:1.6vmin;margin-top:1vmin}
+.spine .seg{flex:1;background:var(--chip);border-radius:1.4vmin;padding:1.8vmin 2vmin;color:var(--muted);
+  font-size:2.2vmin;font-weight:600;border:2px solid transparent}
+.spine .seg .sn{font-family:var(--font-mono);font-weight:800;color:var(--muted);margin-right:.8vmin}
+.spine .seg.active{background:var(--panel);border-color:var(--accent);color:var(--ink)}
+.spine .seg.active .sn{color:var(--accent)}
+.divider .no{font-family:var(--font-mono);font-size:2.4vmin;color:var(--accent);font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.divider h1{margin:1.6vmin 0 3vmin}
+.divider .promise{font-size:2.8vmin;color:var(--muted);font-style:italic;max-width:64vw;margin-bottom:5vmin}
+/* two column */
+.cols{display:flex;gap:6vmin;margin-top:3vmin}
+.col{flex:1}
+.col .lbl{font-family:var(--font-mono);font-size:2.4vmin;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2vmin}
+.col.is .lbl{color:var(--good)} .col.isnt .lbl{color:var(--bad)}
+.col ul{list-style:none;display:flex;flex-direction:column;gap:1.8vmin}
+.col li{font-size:2.8vmin;padding-left:3.6vmin;position:relative;line-height:1.3}
+.col.is li::before{content:"✓";position:absolute;left:0;color:var(--good);font-weight:800}
+.col.isnt li::before{content:"✕";position:absolute;left:0;color:var(--bad);font-weight:800}
+/* the restaurant floor plan (shared/kitchen.js) — the recurring picture of front and back.
+   Label sizes are in viewBox units, so they scale with the drawing rather than with the
+   viewport, which keeps the plan legible at the back of a room without retuning. */
+.floorplan{display:flex;justify-content:center;width:100%}
+.floorplan svg{width:100%;max-width:96vw;max-height:66vh;height:auto}
+.fp-room{font-family:var(--font-mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+.fp-lbl{font-family:var(--font-sans);font-size:14px;font-weight:700}
+.fp-sub{font-family:var(--font-sans);font-size:12px;font-style:italic}
+
+/* cards / examples */
+.cards{display:flex;gap:2.4vmin;margin:3vmin 0}
+.card{flex:1;background:var(--panel);border:2px solid var(--line);border-radius:1.6vmin;padding:3vmin 2.4vmin;
+  text-align:center;font-size:2.8vmin;font-weight:600}
+.card .ico{font-size:6vmin;display:block;margin-bottom:1.4vmin}
+.card small{display:block;font-size:1.9vmin;color:var(--muted);font-weight:600;margin-top:1vmin;line-height:1.3}
+.card.hi{border-color:var(--accent);box-shadow:0 0 0 .5vmin var(--accent-glow)}
+/* a card that is on the slide to be seen as *not* yours: same size, greyed out */
+.card.dim{background:transparent;border-style:dashed;opacity:.45}
+/* two cards carrying a slide on their own: bigger boxes, bigger type, more air */
+.cards.big{gap:4vmin;margin:5vmin 0}
+.cards.big .card{padding:6vmin 4vmin;border-radius:2.2vmin;font-size:4.2vmin}
+.cards.big .card .ico{font-size:9vmin;margin-bottom:2.4vmin}
+.cards.big .card small{font-size:2.5vmin;margin-top:1.8vmin}
+.probe{font-size:3.4vmin;font-weight:700;margin-top:1vmin}
+.probe .q{color:var(--accent)}
+/* cycle — the loop steps are commands, so: mono */
+.cycle{display:flex;align-items:center;gap:1.4vmin;flex-wrap:wrap;margin-top:4vmin}
+.cycle .step{font-family:var(--font-mono);background:var(--accent);color:var(--on-accent);border-radius:1.4vmin;
+  padding:2.2vmin 2.8vmin;font-size:3vmin;font-weight:700}
+.cycle .step.dim{opacity:.32}
+.cycle .step.cur{box-shadow:0 0 0 .5vmin var(--accent-2)}
+.cycle .arr{color:var(--muted);font-size:3vmin}
+/* table */
+table.kv{border-collapse:collapse;margin-top:3vmin;width:100%;font-size:2.8vmin}
+table.kv td{border-bottom:1px solid var(--line);padding:2vmin 1vmin}
+table.kv td.k{font-weight:800;color:var(--ink);width:34%}
+table.kv th{text-align:left;padding:0 1vmin 1.2vmin;font-family:var(--font-mono);font-size:1.9vmin;
+  font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);border-bottom:2px solid var(--accent)}
+/* an even split, for a table whose left column is a peer of its right rather than a label for it */
+table.kv.even{font-size:2.4vmin} table.kv.even td.k{width:50%;font-weight:700}
+table.kv.even td{padding:1.5vmin 1vmin}
+/* a table shown a second time: the lit row carries the point, the rest are there to be
+   recognised. Same two states as the cycle, so one field reads the same way on both. */
+table.kv tr.dim td,table.kv tr.dim td.k{color:var(--muted);opacity:.6;font-weight:400}
+/* a muted row stays muted whatever it was bolded for: a <b> in there keeps its weight from
+   the browser, and one bold row among five grey ones reads as the lit one. */
+table.kv tr.dim b,table.kv tr.dim strong{font-weight:inherit}
+table.kv tr.cur td,table.kv tr.cur td.k{color:var(--accent)}
+/* nested box */
+.nest{margin-top:4vmin;display:flex;justify-content:center}
+.nest .outer{background:var(--panel);border:.5vmin solid var(--line);border-radius:2vmin;padding:6vmin;position:relative;min-width:60vw;text-align:center}
+.nest .outer .olbl{position:absolute;top:-1.6vmin;left:3vmin;background:var(--paper);padding:0 1.4vmin;font-weight:800;color:var(--muted);font-size:2.4vmin}
+.nest .inner{display:inline-block;background:var(--chip);border:3px solid var(--accent);border-radius:1.4vmin;padding:2.4vmin 3.4vmin;font-weight:800;font-size:3vmin;color:var(--accent)}
+/* stage layout: pin a recurring visual in the slide's fixed center; let the
+   title and caption float in fixed top/bottom zones so variable-length text
+   never shifts the visual. Use for any recurring/anchored content. */
+.stage-top{position:absolute;top:8vmin;left:9vmin;right:9vmin;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:1vmin}
+.stage-top .kicker{margin-bottom:0}
+.stage-top h1{font-size:5.4vmin}
+.stage-cap{position:absolute;bottom:12.5vmin;left:9vmin;right:9vmin;text-align:center;
+  font-size:2.6vmin;color:var(--muted);line-height:1.4;max-width:76vw;margin:0 auto}
+/* abstraction ladder */
+.ladder{display:flex;flex-direction:column;gap:1.1vmin;margin:0 auto;width:100%;max-width:72vw}
+/* ladder + example, side by side (show-not-tell rung slides) */
+.ladder-split{display:flex;gap:5vmin;align-items:center;width:100%;margin:auto 0}
+.ladder-split .ladder{flex:0 0 42%;max-width:none;margin:0}
+.ladder-split .ladder .rung{font-size:2.05vmin;padding:1.15vmin 1.7vmin;gap:1.5vmin}
+.ladder-split .ladder .rung .rn{width:2.9vmin;height:2.9vmin;font-size:1.55vmin}
+.ex-col{flex:1;display:flex;flex-direction:column;gap:1.6vmin;min-width:0}
+.ex-col .ex-label{font-family:var(--font-mono);font-size:1.6vmin;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700}
+.ex-col .codeblock{margin-top:0;font-size:2.1vmin}
+.ex-col .prompt-ex{margin-top:0}
+.ex-col .ex-cap{font-size:2.2vmin;color:var(--muted);line-height:1.4}
+/* a rung whose example is a photograph, framed like the Ada scan on the opening slide */
+.ex-col .ex-img{width:100%;max-height:52vh;object-fit:contain;display:block;
+  border:.3vmin solid var(--line);border-radius:.8vmin}
+.codeblock .ghost{color:var(--muted);opacity:.65}
+.ghost{opacity:.5}          /* general faint utility: "suggested / not yet" (e.g. the probabilistic column) */
+/* typewriter reveal: a blinking caret while the code/prompt is typing in */
+.typewrite.typing::after{content:"";display:inline-block;width:1.1ch;height:1.15em;
+  vertical-align:text-bottom;background:var(--accent);margin-left:.1ch;animation:tw-blink .8s steps(1) infinite}
+@keyframes tw-blink{50%{opacity:0}}
+@media (prefers-reduced-motion: reduce){ .typewrite.typing::after{animation:none} }
+.ladder .rung{display:flex;align-items:center;gap:2vmin;padding:1.5vmin 2.4vmin;border-radius:1.2vmin;
+  border:.28vmin solid var(--line);background:var(--panel);font-size:2.6vmin;font-weight:700}
+.ladder .rung .rn{font-family:var(--font-mono);width:3.4vmin;height:3.4vmin;border-radius:50%;background:var(--chip);color:var(--muted);
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.9vmin;flex:0 0 auto}
+.ladder .rung.todo{opacity:.4;border-style:dashed;font-weight:600}
+.ladder .rung.done{color:var(--muted)}
+.ladder .rung.done .rn{background:var(--good);color:var(--on-accent)}
+.ladder .rung.cur{border-color:var(--accent);box-shadow:0 0 0 .45vmin var(--accent-glow)}
+.ladder .rung.cur .rn{background:var(--accent);color:var(--on-accent)}
+/* dual-path lab tracks */
+.tracks{display:flex;gap:5vmin;margin-top:3vmin}
+.tracks .track{flex:1}
+.tracks .tlbl{font-family:var(--font-mono);font-size:2.4vmin;font-weight:800;letter-spacing:.02em;margin-bottom:1.8vmin;color:var(--ink)}
+.tracks .track ul{list-style:none;display:flex;flex-direction:column;gap:1.6vmin}
+.tracks .track li{font-size:2.4vmin;padding-left:3.4vmin;position:relative;line-height:1.32}
+.tracks .track li::before{content:"";position:absolute;left:0;top:1vmin;width:1.5vmin;height:1.5vmin;
+  border-radius:.35vmin;background:var(--accent)}
+/* ---- the machine voice: inline code, code blocks, prompt examples, keys ---- */
+code{font-family:var(--font-mono);background:var(--chip);padding:.1vmin .8vmin;border-radius:.5vmin;font-size:.86em;color:var(--ink)}
+.codeblock{font-family:var(--font-mono);background:var(--code-bg);border:1px solid var(--line);border-radius:1.2vmin;
+  padding:2.6vmin 3vmin;font-size:2.3vmin;line-height:1.5;color:var(--ink);white-space:pre;overflow:auto;margin-top:2.4vmin;text-align:left}
+/* numbered steps that sit ABOVE a codeblock: instructions, not code.
+   Use s.steps on a 'code' slide rather than faking comments inside the block. */
+.code-steps{list-style:none;counter-reset:cs;margin:2.6vmin 0 2.4vmin;display:flex;flex-direction:column;gap:1.5vmin}
+.code-steps li{counter-increment:cs;position:relative;padding-left:5.4vmin;font-size:2.7vmin;line-height:1.35}
+.code-steps li::before{content:counter(cs);position:absolute;left:0;top:.2vmin;width:3.4vmin;height:3.4vmin;
+  border-radius:50%;background:var(--accent);color:var(--on-accent);font-family:var(--font-mono);
+  font-size:1.9vmin;font-weight:700;display:flex;align-items:center;justify-content:center}
+/* ...or BESIDE it (s.side): the steps in plain words on the left, the same steps written
+   for the computer on the right, so the eye can go from one to the other and back. */
+.code-side{display:flex;gap:4vmin;align-items:center;width:100%;margin-top:2.4vmin}
+.code-side .code-steps{flex:0 0 37%;margin:0;gap:2.4vmin}
+.code-side .code-steps li{font-size:2.55vmin}
+.code-side .codeblock{flex:1 1 0;min-width:0;margin-top:0;font-size:2.05vmin}
+/* the outward arrow under a code block that is an address (s.link): sized to be pressed */
+.code-link{margin-top:1.4vmin;padding-left:2.6vmin;font-size:4.6vmin;line-height:1;text-align:left}
+.code-link .extlink{margin-left:0}
+.codeblock .c{color:var(--muted)}                 /* comment  */
+.codeblock .k{color:var(--accent);font-weight:700}/* keyword  */
+.codeblock .s{color:var(--good)}                  /* string   */
+.codeblock .f{color:var(--accent-2)}              /* function/tool */
+.prompt-ex{font-family:var(--font-mono);background:var(--panel);border:1px solid var(--line);
+  border-left:.6vmin solid var(--accent);border-radius:1vmin;padding:2.4vmin 2.8vmin;font-size:2.7vmin;
+  line-height:1.45;color:var(--ink);margin-top:2.4vmin;text-align:left}
+.prompt-ex .lbl{display:block;font-family:var(--font-mono);font-size:1.5vmin;text-transform:uppercase;
+  letter-spacing:.14em;color:var(--accent);font-weight:700;margin-bottom:1.2vmin}
+.prompt-ex .caret{color:var(--accent);font-weight:700}
+/* the join between what you ask and what it runs, on one slide */
+.runs{font-family:var(--font-mono);font-size:1.7vmin;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);text-align:center;margin:2.2vmin 0 -1.2vmin}
+/* voice — the handwritten register: verbatim words that belong to a person, shown as
+   an artifact. The human analogue of a code block. A few lines at most, sized
+   generously (handwriting costs reading speed, and the room reads across languages).
+   Never animated: the machine types; the hand does not. */
+.voice-ex{font-family:var(--font-voice);font-weight:600;font-size:3.6vmin;line-height:1.5;
+  color:var(--ink);margin-top:2.4vmin;text-align:left;max-width:64vw}
+.voice-ex .attrib,.voice-attrib{display:block;font-family:var(--font-sans);font-size:2.1vmin;
+  font-weight:600;color:var(--muted);margin-top:1.8vmin}
+.voice{font-family:var(--font-voice);font-weight:600}
+/* hand-note: the same register used as an annotation — a person writing under the
+   diagram or the code block above it, with a hand-drawn arrow back up to it. Tilted a
+   little, because a hand does not write straight. Never animated. */
+.hand-note{display:flex;align-items:flex-start;gap:1.1vmin;margin-top:2.6vmin;
+  font-family:var(--font-voice);font-weight:600;font-size:2.6vmin;line-height:1.3;
+  color:var(--accent-2);transform:rotate(-1.4deg);transform-origin:left center}
+.hand-note svg{width:2.4vmin;flex:none;transform:scaleY(-1)}
+/* A handwritten annotation INSIDE a code block — a label pencilled onto a printout.
+   Same register and colour as the hand-note, and the typewriter skips it (build-deck.js),
+   because the machine types and the hand does not. */
+.codeblock .hand-in{font-family:var(--font-voice);font-weight:600;color:var(--accent-2);
+  font-size:1.15em;display:inline-block;transform:rotate(-1.6deg);
+  opacity:0;transition:opacity .5s ease .2s}
+/* ...and it arrives only once the machine has finished typing, so it is never an arrow
+   pointing at a line that has not appeared yet. It still occupies its space from the
+   start, so nothing on the slide moves when it fades in. */
+.codeblock.typed .hand-in{opacity:1}
+@media (prefers-reduced-motion: reduce){ .codeblock .hand-in{transition:none} }
+.cycle+.hand-note{justify-content:center;align-self:center;margin-top:3.2vmin}
+.kbd{font-family:var(--font-mono);background:var(--panel);border:1px solid var(--line);border-bottom-width:.4vmin;
+  border-radius:.6vmin;padding:.2vmin 1vmin;font-size:.85em;color:var(--ink);white-space:nowrap}
+/* demo + close */
+.slide.close .tag{background:var(--accent)}
+/* footer / nav — status-bar voice: mono */
+.foot{position:absolute;bottom:2.6vmin;left:9vmin;right:9vmin;display:flex;justify-content:space-between;
+  align-items:center;font-family:var(--font-mono);font-size:1.7vmin;color:var(--muted)}
+.bar{position:fixed;bottom:0;left:0;height:.7vmin;background:var(--accent);transition:width .2s;z-index:5}
+/* location indicator: segmented progress bar + mini-spine chips */
+.segbar{position:fixed;bottom:0;left:0;right:0;height:.7vmin;display:flex;gap:.3vmin;z-index:6}
+.segbar .sg{flex:1;background:var(--line);overflow:hidden;position:relative}
+.segbar .sg .fl{position:absolute;inset:0;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .2s}
+.minispine{position:fixed;top:3.4vmin;right:9vmin;display:flex;gap:.9vmin;z-index:6;transition:opacity .2s}
+.minispine .chip{display:flex;align-items:center;gap:.7vmin;background:var(--panel);border:.28vmin solid var(--line);
+  border-radius:100px;padding:.7vmin 1.4vmin;font-size:1.5vmin;font-weight:700;color:var(--muted)}
+.minispine .chip .cn{font-family:var(--font-mono);width:2.3vmin;height:2.3vmin;border-radius:50%;background:var(--chip);color:var(--muted);
+  display:flex;align-items:center;justify-content:center;font-size:1.35vmin;font-weight:800}
+.minispine .chip.active{border-color:var(--accent);color:var(--ink)}
+.minispine .chip.active .cn{background:var(--accent);color:var(--on-accent)}
+/* beat dots: one per subheading inside a section, so a glance says whether we are
+   still on the same topic or have moved to the next one. Only the section we are in
+   paints them; a finished section's read as past. */
+.minispine .chip .dots{display:flex;align-items:center;gap:.55vmin;margin-left:.6vmin}
+.minispine .chip .dots i{width:.85vmin;height:.85vmin;border-radius:50%;background:var(--chip);
+  transition:background .2s,transform .2s}
+.minispine .chip .dots i.past{background:var(--muted)}
+.minispine .chip .dots i.now{background:var(--accent);transform:scale(1.45)}
+/* ---- bilingual slides (data-lang on <html>, toggled by the button or "j") ----
+   A translated string ships as both languages inside one <span class="i18n">, and
+   this is all that chooses between them. display:contents rather than inline is
+   deliberate: the wrapper generates no box at all, so a translated <li>, card
+   label or heading lays out exactly as if the span were not there — including the
+   ones whose CSS reaches inside them (.card small is display:block, .probe .q is
+   coloured). Anything the deck does not translate has no wrapper and is untouched.
+   The ja text also switches to the Japanese face and drops the uppercasing and
+   letter-spacing the mono chrome uses: neither does anything for kana and kanji
+   except push them apart.
+   Where a line may end is the other thing Japanese needs. It has no spaces, so a
+   browser left to itself ends a line anywhere, in the middle of a word too: あなた
+   came out as あ / なた on the last slide of Class 4. line-break:strict, in every
+   browser, keeps the Japanese rules about what may not start a line (。、ー, small
+   kana). Chrome and Edge 119+ can also find the phrases (word-break:auto-phrase) and
+   end the line between two of them. They do it only for text marked as Japanese,
+   which is what the lang="ja" on every span.ja is for. <html> stays lang="en",
+   because anything the page has not translated is still English.
+   auto-phrase costs one thing, and overflow-wrap:anywhere pays it back. A box that
+   takes its width from its content (a centred statement, a flex item, the header of a
+   design page) can no longer be narrower than its longest phrase, and a phrase can be
+   long. Class 3 asks
+     でも、二台のコンピュータでなければならないのだろうか？
+   and everything after 二台の is one phrase, which ran off the side of the slide.
+   anywhere lets that box shrink again. The line still ends between phrases where a
+   phrase fits, and breaks inside one only where it cannot. Not in a table cell: there
+   anywhere lets the table squeeze a Japanese column to one character wide, so a cell
+   keeps its phrases whole and the table comes out a little wider instead. A browser
+   without auto-phrase gets none of this and stays exactly as it was.
+   The Japanese face is declared inside the markers rather than up in the palette
+   block, because build-doc.js copies the palette verbatim into every design page
+   and copies THIS only into the ones that have Japanese. Everything between the
+   markers is read out of here by build-doc.js and build-index.py, the same way the
+   toggles below are: the designs and the index are bilingual too now, and one
+   source for the rule is what keeps a design page, the index and a deck from
+   disagreeing about what "j" does. */
+/* ==i18n== */
+:root{--font-sans-ja:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic","Noto Sans JP",Meiryo,sans-serif}
+.i18n{display:contents}
+.i18n>span{display:none}
+html[data-lang="en"] .i18n>span.en{display:contents}
+html[data-lang="ja"] .i18n>span.ja{display:contents}
+.i18n>span.ja{font-family:var(--font-sans-ja);text-transform:none;letter-spacing:.02em;line-break:strict}
+@supports (word-break:auto-phrase){.i18n>span.ja{word-break:auto-phrase;overflow-wrap:anywhere}
+  :is(td,th) .i18n>span.ja{overflow-wrap:normal}}
+/* ==/i18n== */
+/* ---- the two toggles ----------------------------------------------------
+   Light/dark and language are the same control, so they are drawn the same way:
+   one pill track in --chip, one knob in --accent that slides to the side that is
+   live, the dead side in --muted. Only what sits inside the track differs — two
+   icons for the theme, two words for the language.
+   The sizes are px, not vmin. These are chrome, not content: a control the reader
+   reaches for once and then forgets, the same size on a laptop, a printed-size
+   window and a projector. Everything on a slide scales with the room; this does
+   not, and at 4.4vmin it was reading as part of the slide.
+   Where the pair SITS is each surface's own business and stays out of this block:
+   the deck pins it to the corner of the window, the design pages put it in the
+   header row. Everything between the markers is copied verbatim into those other
+   two surfaces by build-doc.js and build-index.py — this file is the one source,
+   so the three cannot drift apart again. Don't put a position in here. */
+/* ==toggles== */
+.theme-toggle,.lang-toggle{border:none;background:none;padding:0;cursor:pointer;
+  opacity:.7;transition:opacity .2s;line-height:0}
+.theme-toggle:hover,.lang-toggle:hover{opacity:1}
+.tt-track,.lt-track{position:relative;display:flex;align-items:center;height:26px;
+  border-radius:999px;background:var(--chip);border:1px solid var(--line)}
+.tt-knob,.lt-knob{position:absolute;background:var(--accent);transition:left .2s;z-index:0}
+/* light/dark: sun and moon, a round knob under the live one */
+.tt-track{justify-content:space-between;width:54px;padding:0 6px}
+.tt-ico{font-size:12px;line-height:1;color:var(--muted);z-index:1;transition:color .2s}
+.tt-knob{top:50%;left:2px;width:20px;height:20px;border-radius:50%;transform:translateY(-50%)}
+html[data-theme="dark"] .tt-knob{left:calc(100% - 22px)}
+html[data-theme="light"] .tt-ico.sun{color:var(--on-accent)}
+html[data-theme="dark"]  .tt-ico.moon{color:var(--on-accent)}
+/* language: E and J, and the knob is a pill under the live one. One letter each,
+   so the two switches come out the same width and the pair reads as one control;
+   which language is which is in the button's title and its aria-label. The halves
+   are fixed at 50% so the knob lands on either exactly. */
+.lt-track{width:54px}
+.lt-opt{flex:0 0 50%;display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-size:11.5px;line-height:1;font-weight:800;
+  letter-spacing:normal;text-transform:none;color:var(--muted);z-index:1;transition:color .2s}
+.lt-knob{top:2px;bottom:2px;left:2px;width:calc(50% - 4px);border-radius:999px}
+html[data-lang="ja"] .lt-knob{left:calc(50% + 2px)}
+html[data-lang="en"] .lt-opt.en,
+html[data-lang="ja"] .lt-opt.ja{color:var(--on-accent)}
+@media print{.theme-toggle,.lang-toggle{display:none}}
+/* ==/toggles== */
+/* on a deck the pair is pinned to the corner of the window, clear of the slide */
+.deck-chrome{position:fixed;top:14px;left:14px;z-index:7;display:flex;gap:8px;align-items:center}
+
+/* ---------- on a phone ----------
+   A slide is sized in vmin, so it is the same picture on a laptop and on a wall. The
+   switches are sized in px, and that is what keeps them clear of a slide on a projector
+   and puts them on top of one on a phone. When the short side of the screen is under
+   500px, the 8.6vmin a slide leaves above its kicker is about 33px, and the switches reach
+   down to 40px, so the kicker ran under them. The chips grow leftwards from the right
+   edge, so on an upright phone a long row of them (Class 5 has five sections) ran under
+   the switches from the other side. At 1.5vmin their words were under 6px tall anyway.
+
+   So on a phone the top of the screen is a band that belongs to the chrome, and the slide
+   starts below it. The chips take the switches' own size, in px, and only the section you
+   are in keeps its name: the others show their number, which is still the whole spine at a
+   glance, and the divider slides still name every section. On a phone held sideways the
+   chips share the switches' row. Upright, that row is too narrow, so they take the row
+   under it. A slide taller than the screen now loses its bottom line instead of its kicker.
+
+   One part reaches past phones. A tablet held upright had the same chips under the
+   switches, so any upright screen shows the name on the current chip only. It also had
+   slides taller than the screen, whose kicker went up under the switches, so on any
+   upright screen that slide loses its bottom instead, as on a phone. Nothing here
+   reaches a screen that is wider than it is tall and more than 500px tall. That is every
+   laptop and every projector, so a deck on a wall looks exactly as it did. All of this is
+   here because most students read the decks on a phone (publish/README.md). */
+@media (orientation:portrait),(max-height:500px){
+  /* a chip you are not in is its number and nothing around it, so the one you are in has
+     the room for its name */
+  .minispine .chip:not(.active){padding:0;border-color:transparent;background:none}
+  .minispine .chip:not(.active) .cl,.minispine .chip:not(.active) .dots{display:none}
+  /* safe: a slide taller than the screen loses its bottom, not its kicker */
+  .slide{justify-content:safe center}
+  /* a pinned title (.stage-top) starts where every other slide starts, on the line that
+     clears the chips: at 8vmin a big title was touching the chip above it. A phone moves
+     it again, below its band */
+  .stage-top{top:8.6vmin}
+}
+@media (max-width:500px),(max-height:500px){
+  .minispine{top:14px;left:142px;justify-content:flex-end;gap:4px}
+  .minispine .chip{flex:none;height:26px;padding:0 9px 0 3px;gap:5px;border-width:1px;font-size:10.5px}
+  .minispine .chip .cn{width:18px;height:18px;font-size:10px}
+  .minispine .chip .dots{gap:3px;margin-left:1px}
+  .minispine .chip .dots i{width:5px;height:5px}
+  /* a name too long for the row ends in "…" rather than pushing the row under the switches.
+     Only the name gives way: the number stays round and the dots keep their size */
+  .minispine .chip.active{flex:0 1 auto;min-width:0}
+  .minispine .chip.active .cl{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .minispine .chip .cn,.minispine .chip .dots{flex:none}
+  /* 8px under the band, about the gap between the chips and the slide on a projector */
+  .slide{padding-top:48px}
+  .stage-top{top:48px}
+}
+@media (max-width:500px) and (orientation:portrait){
+  /* a row of its own, which is chrome, so it keeps the switches' 14px from the edge */
+  .minispine{top:48px;left:14px;right:14px}
+  .slide{padding-top:82px}
+  .stage-top{top:82px}
+}
+
+/* ---------- a row of chips too long for its screen ----------
+   A row is as long as its section names. Every deck's row but one is 82vmin or less, and
+   fits beside the switches on a 4:3 screen. Class 5's five names come to 127vmin, and with
+   its 9vmin margin that is wider than a 4:3 screen, which is 133vmin across. There the row
+   pressed its names onto two lines, ran under the switches, and came down over the kicker,
+   in presentation mode too, where the switches are hidden.
+
+   So wherever the whole row does not fit to the right of the switches, it becomes the row an
+   upright screen shows: the section you are in keeps its name and its dots, and the others
+   show their number. The screen's shape cannot tell when that is, because only the names
+   know how long they are, so the deck measures and sets .compact (fitChips, in
+   build-deck.js). Every deck's row fits on a 16:9 or 16:10 screen, so a projector of those
+   shapes never sees this. Without the script the whole row shows, as it always did. */
+.minispine.compact .chip:not(.active){padding:0;border-color:transparent;background:none}
+.minispine.compact .chip:not(.active) .cl,.minispine.compact .chip:not(.active) .dots{display:none}
+
+/* ---------- presentation mode ----------
+   Set on <html> by either of the two things that mean "this deck is in front of a room":
+   the presenter window being open (press "s") and full screen (press "f"). Each sets its
+   own attribute and clears it again, because the two start and end independently — leaving
+   full screen must not put the chrome back while the notes are still up, and closing the
+   notes must not put it back on a deck still filling a wall.
+   A deck on a projector is being read by a room, and every control on it
+   is for the presenter alone: the two switches, the Review button with its count, and
+   the "· commented" note a reviewed slide carries in its footer are all noise on a wall.
+
+   The switches and the Review button are not removed, only made invisible: they keep
+   their place and their pointer events, so putting the pointer on the corner they live
+   in brings them back. Nothing appears from moving the mouse across the slide — only
+   from being on the control itself — so a presenter waving a cursor at the screen never
+   makes chrome flash up in front of the room. The footer note has no such affordance and
+   simply goes: the same comments are still a keypress away on Shift+C. */
+html:is([data-present],[data-full]) .deck-chrome,
+html:is([data-present],[data-full]) #rvbtn{opacity:0;transition:opacity .2s}
+html:is([data-present],[data-full]) .deck-chrome:hover,
+html:is([data-present],[data-full]) .deck-chrome:focus-within,
+html:is([data-present],[data-full]) #rvbtn:hover,
+html:is([data-present],[data-full]) #rvbtn:focus{opacity:1}
+/* while the review box is open the button is the count and where the file goes, so it
+   stays visible without being pointed at */
+html:is([data-present],[data-full]) #rvbtn:has(~ #rvpanel.open){opacity:1}
+html:is([data-present],[data-full]) .slide.rvhas .foot span:first-child::after{content:none}
+
+/* statement + picture: the sentence keeps its own column so kicker/big/sub stay
+   translatable fields rather than hand-written HTML. See build-deck.js, case 'statement'. */
+.figure-split{display:flex;gap:5vmin;align-items:center;height:100%;width:100%}
+.figure-split>div:first-child{flex:0 0 44%}
+.figure-split .fig{flex:1;height:78%}
+.figure-split .fig img{width:100%;height:100%;object-fit:contain;border-radius:1.2vmin}
+/* contain, not cover: the picture may carry content that argues something (the six
+   polaroids on Class 5's sous-chef are the evidence for "a million kitchens"), and
+   cover would crop whichever end did not fit the column. */
+.credit{font-family:var(--font-mono);font-size:1.5vmin;color:var(--muted);
+  margin-top:3.2vmin;letter-spacing:.04em}
+</style><script>try{var t=localStorage.getItem('kgtheme');if(t)document.documentElement.dataset.theme=t;}catch(e){}</script><script>try{var l=localStorage.getItem('kglang');if(l)document.documentElement.dataset.lang=l;}catch(e){}</script></head>
+<body><div id="deck"><section class="slide" data-sid="software-architecture-the-backend-and-the-frontend" data-type="title"><div class="center" style="margin:auto"><h1><span class="i18n"><span class="en" lang="en">Software architecture: the backend and the frontend</span><span class="ja" lang="ja">ソフトウェアアーキテクチャ：<wbr>バックエンドとフロントエンド</span></span></h1><div class="sub"><span class="i18n"><span class="en" lang="en">Anyone Can Build &middot; Class 10</span><span class="ja" lang="ja">誰でもつくれる &middot; 第10回</span></span></div></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>1 / 31</span></div></section>
+<section class="slide" data-sid="part-backend-architecture" data-type="divider"><div class="divider" style="margin:auto 0"><div class="no"><span class="i18n"><span class="en" lang="en">Part 3</span><span class="ja" lang="ja">第3部</span></span></div><h1><span class="i18n"><span class="en" lang="en">Backend architecture</span><span class="ja" lang="ja">バックエンドのアーキテクチャ</span></span></h1><div class="promise"><span class="i18n"><span class="en" lang="en">Where the decisions run, and what is inside the backend.</span><span class="ja" lang="ja">判断がどこで動くか、そしてバックエンドの中に何があるか。</span></span></div><div class="spine"><div class="seg"><span class="sn">1</span><span class="i18n"><span class="en" lang="en">Intro to architecture</span><span class="ja" lang="ja">アーキテクチャ入門</span></span></div><div class="seg"><span class="sn">2</span><span class="i18n"><span class="en" lang="en">Database</span><span class="ja" lang="ja">データベース</span></span></div><div class="seg active"><span class="sn">3</span><span class="i18n"><span class="en" lang="en">Backend architecture</span><span class="ja" lang="ja">バックエンドのアーキテクチャ</span></span></div><div class="seg"><span class="sn">4</span><span class="i18n"><span class="en" lang="en">Frontend architecture</span><span class="ja" lang="ja">フロントエンドのアーキテクチャ</span></span></div><div class="seg"><span class="sn">5</span><span class="i18n"><span class="en" lang="en">Journal</span><span class="ja" lang="ja">ジャーナル</span></span></div></div></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>2 / 31</span></div></section>
+<section class="slide" data-sid="where-should-the-sorting-happen" data-type="raw" data-show="1"><div class="kicker"><span class="i18n"><span class="en" lang="en">newest first</span><span class="ja" lang="ja">新しい順</span></span></div><h1><span class="i18n"><span class="en" lang="en">Where should the sorting happen?</span><span class="ja" lang="ja">並べ替えはどこで行うべきか？</span></span></h1><div style="margin:auto 0;width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3vmin"><div style="border:.35vmin solid var(--accent);border-radius:1.6vmin;padding:5vmin 3vmin;text-align:center;background:var(--panel)"><div style="font-family:var(--font-mono);font-size:5vmin;font-weight:800">Frontend</div></div><div style="border:.35vmin solid var(--accent);border-radius:1.6vmin;padding:5vmin 3vmin;text-align:center;background:var(--panel)"><div style="font-family:var(--font-mono);font-size:5vmin;font-weight:800">Backend</div></div><div style="border:.35vmin solid var(--accent);border-radius:1.6vmin;padding:5vmin 3vmin;text-align:center;background:var(--panel)"><div style="font-family:var(--font-mono);font-size:5vmin;font-weight:800">Database</div></div></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en"><b style="color:var(--ink)">All three can do it.</b></span><span class="ja" lang="ja"><b style="color:var(--ink)">三つともできる。</b></span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>3 / 31</span></div></section>
+<section class="slide" data-sid="on-the-frontend" data-type="raw" data-show="1"><div class="kicker"><span class="i18n"><span class="en" lang="en">newest first &middot; 1 of 3</span><span class="ja" lang="ja">新しい順 &middot; 3つのうち1つ目</span></span></div><h1><span class="i18n"><span class="en" lang="en">On the frontend</span><span class="ja" lang="ja">フロントエンドで</span></span></h1><div style="margin:auto 0;display:flex;align-items:center;gap:4.5vmin;width:100%"><div style="flex:none"><svg viewBox="160 0 880 656" style="display:block;height:52vh;width:auto;max-width:100%" role="img"><rect x="300" y="40" width="600" height="118" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.6"/><text x="334" y="110" text-anchor="start" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Frontend</text><text x="866" y="110" text-anchor="end" font-family="var(--font-sans)" font-size="21" font-weight="600" fill="var(--muted)">one job: <tspan font-weight="800" fill="var(--accent-2)">interact</tspan></text><line x1="396" y1="170" x2="396" y2="242" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,-9 8,-9 0,9" fill="var(--accent-2)" transform="translate(396,244)"/><line x1="804" y1="242" x2="804" y2="170" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,9 8,9 0,-9" fill="var(--accent-2)" transform="translate(804,168)"/><text x="600" y="213" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="700" fill="var(--accent-2)">interface</text><rect x="300" y="254" width="600" height="118" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.6"/><text x="334" y="324" text-anchor="start" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Backend</text><text x="866" y="324" text-anchor="end" font-family="var(--font-sans)" font-size="21" font-weight="600" fill="var(--muted)">one job: <tspan font-weight="800" fill="var(--accent-2)">decide</tspan></text><line x1="396" y1="384" x2="396" y2="456" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,-9 8,-9 0,9" fill="var(--accent-2)" transform="translate(396,458)"/><line x1="804" y1="456" x2="804" y2="384" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,9 8,9 0,-9" fill="var(--accent-2)" transform="translate(804,382)"/><text x="600" y="427" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="700" fill="var(--accent-2)">interface</text><rect x="300" y="468" width="600" height="118" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.6"/><text x="334" y="538" text-anchor="start" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Database</text><text x="866" y="538" text-anchor="end" font-family="var(--font-sans)" font-size="21" font-weight="600" fill="var(--muted)">one job: <tspan font-weight="800" fill="var(--accent-2)">store</tspan></text><text x="600" y="632" text-anchor="middle" font-family="var(--font-sans)" font-size="27" font-weight="800" fill="var(--accent)">separation of concerns: one job per part</text><rect x="284" y="26" width="632" height="146" rx="22" fill="none" stroke="var(--accent-2)" stroke-width="7"/></svg></div><ol style="list-style:none;flex:1;min-width:0;display:flex;flex-direction:column;gap:2.2vmin;margin:0;padding:0"><li style="display:flex;gap:1.8vmin;align-items:flex-start;font-size:2.6vmin;line-height:1.3"><span style="flex:none;width:3.8vmin;height:3.8vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:2.1vmin;display:inline-flex;align-items:center;justify-content:center;margin-top:-.3vmin">1</span><span>the page asks the server for the posts</span></li><li style="display:flex;gap:1.8vmin;align-items:flex-start;font-size:2.6vmin;line-height:1.3"><span style="flex:none;width:3.8vmin;height:3.8vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:2.1vmin;display:inline-flex;align-items:center;justify-content:center;margin-top:-.3vmin">2</span><span>the server sends <b>every post</b></span></li><li style="display:flex;gap:1.8vmin;align-items:flex-start;font-size:2.6vmin;line-height:1.3"><span style="flex:none;width:3.8vmin;height:3.8vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:2.1vmin;display:inline-flex;align-items:center;justify-content:center;margin-top:-.3vmin">3</span><span>the page sorts them in the browser: <code style="font-family:var(--font-mono);font-size:.92em">posts.sort(...)</code></span></li><li style="display:flex;gap:1.8vmin;align-items:flex-start;font-size:2.6vmin;line-height:1.3"><span style="flex:none;width:3.8vmin;height:3.8vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:2.1vmin;display:inline-flex;align-items:center;justify-content:center;margin-top:-.3vmin">4</span><span>the page shows the newest at the top</span></li></ol></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>4 / 31</span></div></section>
+<section class="slide" data-sid="in-the-database" data-type="raw" data-show="1"><div class="kicker"><span class="i18n"><span class="en" lang="en">newest first &middot; 2 of 3</span><span class="ja" lang="ja">新しい順 &middot; 3つのうち2つ目</span></span></div><h1><span class="i18n"><span class="en" lang="en">In the database</span><span class="ja" lang="ja">データベースで</span></span></h1><div style="margin:auto 0;display:flex;align-items:center;gap:4.5vmin;width:100%"><div style="flex:none"><svg viewBox="160 0 880 656" style="display:block;height:52vh;width:auto;max-width:100%" role="img"><rect x="300" y="40" width="600" height="118" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.6"/><text x="334" y="110" text-anchor="start" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Frontend</text><text x="866" y="110" text-anchor="end" font-family="var(--font-sans)" font-size="21" font-weight="600" fill="var(--muted)">one job: <tspan font-weight="800" fill="var(--accent-2)">interact</tspan></text><line x1="396" y1="170" x2="396" y2="242" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,-9 8,-9 0,9" fill="var(--accent-2)" transform="translate(396,244)"/><line x1="804" y1="242" x2="804" y2="170" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,9 8,9 0,-9" fill="var(--accent-2)" transform="translate(804,168)"/><text x="600" y="213" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="700" fill="var(--accent-2)">interface</text><rect x="300" y="254" width="600" height="118" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.6"/><text x="334" y="324" text-anchor="start" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Backend</text><text x="866" y="324" text-anchor="end" font-family="var(--font-sans)" font-size="21" font-weight="600" fill="var(--muted)">one job: <tspan font-weight="800" fill="var(--accent-2)">decide</tspan></text><line x1="396" y1="384" x2="396" y2="456" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,-9 8,-9 0,9" fill="var(--accent-2)" transform="translate(396,458)"/><line x1="804" y1="456" x2="804" y2="384" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,9 8,9 0,-9" fill="var(--accent-2)" transform="translate(804,382)"/><text x="600" y="427" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="700" fill="var(--accent-2)">interface</text><rect x="300" y="468" width="600" height="118" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.6"/><text x="334" y="538" text-anchor="start" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Database</text><text x="866" y="538" text-anchor="end" font-family="var(--font-sans)" font-size="21" font-weight="600" fill="var(--muted)">one job: <tspan font-weight="800" fill="var(--accent-2)">store</tspan></text><text x="600" y="632" text-anchor="middle" font-family="var(--font-sans)" font-size="27" font-weight="800" fill="var(--accent)">separation of concerns: one job per part</text><rect x="284" y="454" width="632" height="146" rx="22" fill="none" stroke="var(--accent-2)" stroke-width="7"/></svg></div><ol style="list-style:none;flex:1;min-width:0;display:flex;flex-direction:column;gap:2.2vmin;margin:0;padding:0"><li style="display:flex;gap:1.8vmin;align-items:flex-start;font-size:2.6vmin;line-height:1.3"><span style="flex:none;width:3.8vmin;height:3.8vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:2.1vmin;display:inline-flex;align-items:center;justify-content:center;margin-top:-.3vmin">1</span><span>someone sends the database a query: <code style="font-family:var(--font-mono);font-size:.92em">SELECT * FROM posts ORDER BY id DESC LIMIT 20</code></span></li><li style="display:flex;gap:1.8vmin;align-items:flex-start;font-size:2.6vmin;line-height:1.3"><span style="flex:none;width:3.8vmin;height:3.8vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:2.1vmin;display:inline-flex;align-items:center;justify-content:center;margin-top:-.3vmin">2</span><span>the database finds the newest twenty</span></li><li style="display:flex;gap:1.8vmin;align-items:flex-start;font-size:2.6vmin;line-height:1.3"><span style="flex:none;width:3.8vmin;height:3.8vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:2.1vmin;display:inline-flex;align-items:center;justify-content:center;margin-top:-.3vmin">3</span><span>it hands back just those twenty, in order</span></li></ol></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en"><b style="color:var(--ink)">The database executes the query. It does not choose the query.</b></span><span class="ja" lang="ja"><b style="color:var(--ink)">データベースはクエリを実行する。クエリを選ぶのはデータベースではない。</b></span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>5 / 31</span></div></section>
+<section class="slide" data-sid="in-the-backend" data-type="raw" data-show="1"><div class="kicker"><span class="i18n"><span class="en" lang="en">newest first &middot; 3 of 3</span><span class="ja" lang="ja">新しい順 &middot; 3つのうち3つ目</span></span></div><h1><span class="i18n"><span class="en" lang="en">In the backend</span><span class="ja" lang="ja">バックエンドで</span></span></h1><div style="margin:auto 0;display:flex;align-items:center;gap:4.5vmin;width:100%"><div style="flex:none"><svg viewBox="160 0 880 656" style="display:block;height:52vh;width:auto;max-width:100%" role="img"><rect x="300" y="40" width="600" height="118" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.6"/><text x="334" y="110" text-anchor="start" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Frontend</text><text x="866" y="110" text-anchor="end" font-family="var(--font-sans)" font-size="21" font-weight="600" fill="var(--muted)">one job: <tspan font-weight="800" fill="var(--accent-2)">interact</tspan></text><line x1="396" y1="170" x2="396" y2="242" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,-9 8,-9 0,9" fill="var(--accent-2)" transform="translate(396,244)"/><line x1="804" y1="242" x2="804" y2="170" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,9 8,9 0,-9" fill="var(--accent-2)" transform="translate(804,168)"/><text x="600" y="213" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="700" fill="var(--accent-2)">interface</text><rect x="300" y="254" width="600" height="118" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.6"/><text x="334" y="324" text-anchor="start" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Backend</text><text x="866" y="324" text-anchor="end" font-family="var(--font-sans)" font-size="21" font-weight="600" fill="var(--muted)">one job: <tspan font-weight="800" fill="var(--accent-2)">decide</tspan></text><line x1="396" y1="384" x2="396" y2="456" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,-9 8,-9 0,9" fill="var(--accent-2)" transform="translate(396,458)"/><line x1="804" y1="456" x2="804" y2="384" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,9 8,9 0,-9" fill="var(--accent-2)" transform="translate(804,382)"/><text x="600" y="427" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="700" fill="var(--accent-2)">interface</text><rect x="300" y="468" width="600" height="118" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.6"/><text x="334" y="538" text-anchor="start" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Database</text><text x="866" y="538" text-anchor="end" font-family="var(--font-sans)" font-size="21" font-weight="600" fill="var(--muted)">one job: <tspan font-weight="800" fill="var(--accent-2)">store</tspan></text><text x="600" y="632" text-anchor="middle" font-family="var(--font-sans)" font-size="27" font-weight="800" fill="var(--accent)">separation of concerns: one job per part</text><rect x="284" y="240" width="632" height="146" rx="22" fill="none" stroke="var(--accent-2)" stroke-width="7"/><rect x="284" y="454" width="632" height="146" rx="22" fill="none" stroke="var(--accent-2)" stroke-width="4" stroke-dasharray="12 10" opacity=".75"/></svg></div><ol style="list-style:none;flex:1;min-width:0;display:flex;flex-direction:column;gap:2.2vmin;margin:0;padding:0"><li style="display:flex;gap:1.8vmin;align-items:flex-start;font-size:2.6vmin;line-height:1.3"><span style="flex:none;width:3.8vmin;height:3.8vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:2.1vmin;display:inline-flex;align-items:center;justify-content:center;margin-top:-.3vmin">1</span><span>the page asks the backend: <i>the newest posts, please</i></span></li><li style="display:flex;gap:1.8vmin;align-items:flex-start;font-size:2.6vmin;line-height:1.3"><span style="flex:none;width:3.8vmin;height:3.8vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:2.1vmin;display:inline-flex;align-items:center;justify-content:center;margin-top:-.3vmin">2</span><span>the backend writes the query: newest first, only twenty</span></li><li style="display:flex;gap:1.8vmin;align-items:flex-start;font-size:2.6vmin;line-height:1.3"><span style="flex:none;width:3.8vmin;height:3.8vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:2.1vmin;display:inline-flex;align-items:center;justify-content:center;margin-top:-.3vmin">3</span><span>the database runs it and hands back twenty rows</span></li><li style="display:flex;gap:1.8vmin;align-items:flex-start;font-size:2.6vmin;line-height:1.3"><span style="flex:none;width:3.8vmin;height:3.8vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:2.1vmin;display:inline-flex;align-items:center;justify-content:center;margin-top:-.3vmin">4</span><span>the backend sends those twenty to the page</span></li><li style="display:flex;gap:1.8vmin;align-items:flex-start;font-size:2.6vmin;line-height:1.3"><span style="flex:none;width:3.8vmin;height:3.8vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:2.1vmin;display:inline-flex;align-items:center;justify-content:center;margin-top:-.3vmin">5</span><span>the page shows them</span></li></ol></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en"><b style="color:var(--ink)">The backend formulates the query. The database executes it.</b></span><span class="ja" lang="ja"><b style="color:var(--ink)">バックエンドがクエリを組み立てる。データベースがそれを実行する。</b></span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>6 / 31</span></div></section>
+<section class="slide" data-sid="why-the-backend-decides" data-type="raw"><h1><span class="i18n"><span class="en" lang="en">Why the backend decides</span><span class="ja" lang="ja">なぜバックエンドが決めるのか</span></span></h1><div style="margin:auto 0;width:100%"><ol class="big num" style="gap:3.6vmin;margin-top:0"><li><b>one rule for every screen</b><div style="font-size:2.6vmin;color:var(--muted);margin-top:.8vmin">(the web page, the phone app, the next app)</div></li><li><b>send only what is needed</b><div style="font-size:2.6vmin;color:var(--muted);margin-top:.8vmin">(the newest 20, not every post ever written)</div></li><li><b>the user cannot change it</b><div style="font-size:2.6vmin;color:var(--muted);margin-top:.8vmin">(anything that runs on the user's own device, the user can change)</div></li></ol></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en">the backend formulates the query; the database executes it.</span><span class="ja" lang="ja">バックエンドがクエリを組み立て、データベースがそれを実行する。</span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>7 / 31</span></div></section>
+<section class="slide" data-sid="sort-these-with-your-agent" data-type="prompt"><h1><span class="i18n"><span class="en" lang="en">Sort these, with your agent</span><span class="ja" lang="ja">エージェントと一緒に、仕分ける</span></span></h1><div class="prompt-ex"><span class="lbl">Prompt</span><span class="caret">&#10095;</span> <span class="typewrite">List ten jobs a Twitter-like app does. Sort each into frontend, backend or database, with one line of why.</span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>8 / 31</span></div></section>
+<section class="slide" data-sid="inside-the-backend" data-type="raw"><div class="kicker"><span class="i18n"><span class="en" lang="en">Inside the backend</span><span class="ja" lang="ja">バックエンドの中</span></span></div><style>section[data-type="divider"] .spine .seg:has(~ .seg.active) .sn{font-size:0}
+  section[data-type="divider"] .spine .seg:has(~ .seg.active) .sn::before{content:"\2713";font-size:2.6vmin;color:var(--good)}</style><div style="display:flex;justify-content:center;margin:auto 0"><svg viewBox="0 0 1200 400" style="width:94vw;max-height:60vh" role="img"><rect x="60" y="56" width="1068" height="230" rx="14" fill="none" stroke="var(--muted)" stroke-width="2.5" stroke-dasharray="10 9"/><text x="78" y="84" text-anchor="start" font-family="var(--font-mono)" font-size="22" font-weight="800" fill="var(--muted)">Backend</text><rect x="90" y="96" width="300" height="150" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="240" y="154" text-anchor="middle" font-family="var(--font-mono)" font-size="32" font-weight="800" fill="var(--ink)">Controller</text><text x="240" y="192" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">takes the request,</text><text x="240" y="218" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">sends it to the right place</text><line x1="400" y1="171" x2="428" y2="171" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-9,-8 -9,8 9,0" fill="var(--accent-2)" transform="translate(434,171)"/><rect x="444" y="96" width="300" height="150" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="594" y="154" text-anchor="middle" font-family="var(--font-mono)" font-size="32" font-weight="800" fill="var(--ink)">Model</text><text x="594" y="192" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">the business logic,</text><text x="594" y="218" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">and what a post is</text><line x1="754" y1="171" x2="782" y2="171" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-9,-8 -9,8 9,0" fill="var(--accent-2)" transform="translate(788,171)"/><rect x="798" y="96" width="300" height="150" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="948" y="154" text-anchor="middle" font-family="var(--font-mono)" font-size="32" font-weight="800" fill="var(--ink)">View</text><text x="948" y="192" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">shapes the answer</text><text x="948" y="218" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">that goes back</text><text x="20" y="34" text-anchor="start" font-family="var(--font-sans)" font-size="20" font-weight="700" fill="var(--accent-2)">a request comes in</text><text x="1180" y="34" text-anchor="end" font-family="var(--font-sans)" font-size="20" font-weight="700" fill="var(--accent-2)">an answer goes back</text><polygon points="-9,-8 -9,8 9,0" fill="var(--accent-2)" transform="translate(96,171)"/><line x1="20" y1="171" x2="86" y2="171" stroke="var(--accent-2)" stroke-width="3"/><line x1="1104" y1="171" x2="1190" y2="171" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-9,-8 -9,8 9,0" fill="var(--accent-2)" transform="translate(1198,171)"/><line x1="594" y1="252" x2="594" y2="304" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,-9 8,-9 0,9" fill="var(--accent-2)" transform="translate(594,312)"/><text x="612" y="312" text-anchor="start" font-family="var(--font-sans)" font-size="19" font-weight="700" fill="var(--accent-2)">queries the database</text><rect x="444" y="322" width="300" height="74" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="594" y="368" text-anchor="middle" font-family="var(--font-mono)" font-size="26" font-weight="800" fill="var(--ink)">Database</text></svg></div><div class="credit" style="text-align:center;margin-top:1vmin">MVC &middot; Trygve Reenskaug, Xerox PARC, 1978&ndash;79</div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en"><b>Model &middot; View &middot; Controller</b>, said <b>MVC</b>. The same rule, one level down.</span><span class="ja" lang="ja"><b>モデル &middot; ビュー &middot; コントローラー</b>、略して<b>MVC</b>。同じルールを、一段下で。</span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>9 / 31</span></div></section>
+<section class="slide" data-sid="the-demo-s-own-server-in-three" data-type="raw" data-show="1"><div class="kicker"><span class="i18n"><span class="en" lang="en">The demo&rsquo;s own server, in three parts</span><span class="ja" lang="ja">デモのサーバーそのものを、三つの部品で</span></span></div><div class="" style="margin:auto 0;width:100%;display:flex;flex-direction:column;gap:1.1vmin"><div style="display:flex;align-items:stretch;gap:2vmin">
+      <div style="flex:1;min-width:0;background:var(--code-bg);border:1px solid var(--line);border-radius:1vmin;
+        padding:.8vmin 1.6vmin;font-family:var(--font-mono);font-size:1.95vmin;line-height:1.36;overflow:hidden"><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">31</span><span style="white-space:pre"><span style="color:var(--muted)">#  CONTROLLER</span></span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">57</span><span style="white-space:pre">    <span style="color:var(--accent)">def</span> do_POST(self):</span></div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">58</span><span style="white-space:pre">        <span style="color:var(--accent)">if</span> urlparse(self.path).path != <span style="color:var(--accent-2)">"/posts"</span>:</span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">71</span><span style="white-space:pre">            row = save_post(self.server.db_path, data.get(<span style="color:var(--accent-2)">"author"</span>), data.get(<span style="color:var(--accent-2)">"text"</span>))</span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">75</span><span style="white-space:pre">        self.send_json(201, post_to_json(row))</span></div></div>
+      <div style="width:25%;flex:none;display:flex;flex-direction:column;justify-content:center;
+        border-left:.45vmin solid var(--accent);padding-left:1.8vmin"><div style="font-family:var(--font-mono);font-size:2.6vmin;font-weight:800;color:var(--accent)">controller</div><div style="font-size:2.1vmin;line-height:1.35;color:var(--muted);margin-top:.6vmin">reads the request and picks what to do</div></div></div><div style="display:flex;align-items:stretch;gap:2vmin">
+      <div style="flex:1;min-width:0;background:var(--code-bg);border:1px solid var(--line);border-radius:1vmin;
+        padding:.8vmin 1.6vmin;font-family:var(--font-mono);font-size:1.95vmin;line-height:1.36;overflow:hidden"><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">98</span><span style="white-space:pre"><span style="color:var(--muted)">#  MODEL</span></span></div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">105</span><span style="white-space:pre">MAX_TEXT = 280</span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">150</span><span style="white-space:pre">    <span style="color:var(--accent)">if</span> text == <span style="color:var(--accent-2)">""</span>:</span></div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">151</span><span style="white-space:pre">        <span style="color:var(--accent)">raise</span> RuleBroken(<span style="color:var(--accent-2)">"The post must not be empty."</span>)</span></div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">152</span><span style="white-space:pre">    <span style="color:var(--accent)">if</span> len(text) &gt; MAX_TEXT:</span></div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">153</span><span style="white-space:pre">        <span style="color:var(--accent)">raise</span> RuleBroken(f<span style="color:var(--accent-2)">"The post must be {MAX_TEXT} characters or fewer."</span>)</span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">165</span><span style="white-space:pre"><span style="color:var(--accent)">def</span> save_post(db_path, author, text):</span></div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">166</span><span style="white-space:pre">    <span style="color:var(--accent-2)">"""Check the rules, save the post, and return the saved row."""</span></span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">169</span><span style="white-space:pre">    author_id = user_id_for(connection, author)</span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">171</span><span style="white-space:pre">        <span style="color:var(--accent-2)">"INSERT INTO posts (author_id, text, posted_at) VALUES (?, ?, ?)"</span>,</span></div></div>
+      <div style="width:25%;flex:none;display:flex;flex-direction:column;justify-content:center;
+        border-left:.45vmin solid var(--accent);padding-left:1.8vmin"><div style="font-family:var(--font-mono);font-size:2.6vmin;font-weight:800;color:var(--accent)">model</div><div style="font-size:2.1vmin;line-height:1.35;color:var(--muted);margin-top:.6vmin">the business rules (not empty, at most 280), the author found in <code>users</code>, and the save to <code>timeline.db</code></div></div></div><div style="display:flex;align-items:stretch;gap:2vmin">
+      <div style="flex:1;min-width:0;background:var(--code-bg);border:1px solid var(--line);border-radius:1vmin;
+        padding:.8vmin 1.6vmin;font-family:var(--font-mono);font-size:1.95vmin;line-height:1.36;overflow:hidden"><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">190</span><span style="white-space:pre"><span style="color:var(--muted)">#  VIEW</span></span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">194</span><span style="white-space:pre"><span style="color:var(--accent)">def</span> post_to_json(row):</span></div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">195</span><span style="white-space:pre">    <span style="color:var(--accent)">return</span> {<span style="color:var(--accent-2)">"id"</span>: row[<span style="color:var(--accent-2)">"id"</span>], <span style="color:var(--accent-2)">"author"</span>: row[<span style="color:var(--accent-2)">"author"</span>],</span></div><div style="display:flex;align-items:center;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">196</span><span style="white-space:pre">            <span style="color:var(--accent-2)">"text"</span>: row[<span style="color:var(--accent-2)">"text"</span>], <span style="color:var(--accent-2)">"posted_at"</span>: row[<span style="color:var(--accent-2)">"posted_at"</span>]}</span></div></div>
+      <div style="width:25%;flex:none;display:flex;flex-direction:column;justify-content:center;
+        border-left:.45vmin solid var(--accent);padding-left:1.8vmin"><div style="font-family:var(--font-mono);font-size:2.6vmin;font-weight:800;color:var(--accent)">view</div><div style="font-size:2.1vmin;line-height:1.35;color:var(--muted);margin-top:.6vmin">turns rows into the answer</div></div></div></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en">the file that ran all afternoon, opened</span><span class="ja" lang="ja">午後のあいだずっと動いていたファイルを、開いたもの</span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>10 / 31</span></div></section>
+<section class="slide" data-sid="follow-one-post-through-the-code" data-type="raw" data-show="1"><div class="kicker"><span class="i18n"><span class="en" lang="en">Follow one post through the code</span><span class="ja" lang="ja">一つの投稿を、コードの中で追う</span></span></div><style>.steplink [data-step]{cursor:pointer;transition:opacity .2s}.steplink [data-step].off{opacity:.35}
+.steplink [data-mark]{transition:opacity .2s,box-shadow .2s}.steplink [data-mark].off{opacity:.35}
+.steplink [data-mark].on{box-shadow:0 0 0 .35vmin var(--accent) inset}</style><div class="steplink " style="margin:auto 0;width:100%;display:flex;flex-direction:column;gap:1.1vmin"><div style="display:flex;align-items:stretch;gap:2vmin">
+      <div style="flex:1;min-width:0;background:var(--code-bg);border:1px solid var(--line);border-radius:1vmin;
+        padding:.8vmin 1.6vmin;font-family:var(--font-mono);font-size:1.95vmin;line-height:1.36;overflow:hidden"><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">31</span><span style="white-space:pre"><span style="color:var(--muted)">#  CONTROLLER</span></span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div data-mark="1" style="display:flex;align-items:center;background:var(--accent-glow);border-radius:.4vmin;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"><span style="display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:1.35em;height:1.35em;border-radius:50%;background:var(--accent);color:var(--on-accent);
+  font-family:var(--font-mono);font-weight:800;font-size:calc(1.35em * .62)">1</span></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">57</span><span style="white-space:pre">    <span style="color:var(--accent)">def</span> do_POST(self):</span></div><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">58</span><span style="white-space:pre">        <span style="color:var(--accent)">if</span> urlparse(self.path).path != <span style="color:var(--accent-2)">"/posts"</span>:</span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div data-mark="2" style="display:flex;align-items:center;background:var(--accent-glow);border-radius:.4vmin;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"><span style="display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:1.35em;height:1.35em;border-radius:50%;background:var(--accent);color:var(--on-accent);
+  font-family:var(--font-mono);font-weight:800;font-size:calc(1.35em * .62)">2</span></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">71</span><span style="white-space:pre">            row = save_post(self.server.db_path, data.get(<span style="color:var(--accent-2)">"author"</span>), data.get(<span style="color:var(--accent-2)">"text"</span>))</span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">75</span><span style="white-space:pre">        self.send_json(201, post_to_json(row))</span></div></div>
+      <div style="width:25%;flex:none;display:flex;flex-direction:column;justify-content:center;
+        border-left:.45vmin solid var(--accent);padding-left:1.8vmin"><div style="display:inline-grid;grid-template-columns:auto auto auto;gap:0 2.2vmin;
+  font-family:var(--font-mono);font-size:1.6vmin;background:var(--code-bg);border:1px solid var(--line);
+  border-radius:.8vmin;padding:.8vmin 1.4vmin;margin-bottom:1.6vmin">
+  <span style="color:var(--muted)">Name</span><span style="color:var(--muted)">Method</span><span style="color:var(--muted)">Status</span>
+  <span>posts</span><span>POST</span><span>201</span></div><div style="font-family:var(--font-mono);font-size:2.6vmin;font-weight:800;color:var(--accent)">controller</div><div data-step="1" style="display:flex;gap:1.2vmin;align-items:baseline;font-size:2.1vmin;line-height:1.3;margin-top:.9vmin"><span style="display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:2.4vmin;height:2.4vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);
+  font-family:var(--font-mono);font-weight:800;font-size:calc(2.4vmin * .62)">1</span><span>sees <code>POST /posts</code></span></div><div data-step="2" style="display:flex;gap:1.2vmin;align-items:baseline;font-size:2.1vmin;line-height:1.3;margin-top:.9vmin"><span style="display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:2.4vmin;height:2.4vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);
+  font-family:var(--font-mono);font-weight:800;font-size:calc(2.4vmin * .62)">2</span><span>hands the post to the model</span></div></div></div><div style="display:flex;align-items:stretch;gap:2vmin">
+      <div style="flex:1;min-width:0;background:var(--code-bg);border:1px solid var(--line);border-radius:1vmin;
+        padding:.8vmin 1.6vmin;font-family:var(--font-mono);font-size:1.95vmin;line-height:1.36;overflow:hidden"><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">98</span><span style="white-space:pre"><span style="color:var(--muted)">#  MODEL</span></span></div><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">105</span><span style="white-space:pre">MAX_TEXT = 280</span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">150</span><span style="white-space:pre">    <span style="color:var(--accent)">if</span> text == <span style="color:var(--accent-2)">""</span>:</span></div><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">151</span><span style="white-space:pre">        <span style="color:var(--accent)">raise</span> RuleBroken(<span style="color:var(--accent-2)">"The post must not be empty."</span>)</span></div><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">152</span><span style="white-space:pre">    <span style="color:var(--accent)">if</span> len(text) &gt; MAX_TEXT:</span></div><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">153</span><span style="white-space:pre">        <span style="color:var(--accent)">raise</span> RuleBroken(f<span style="color:var(--accent-2)">"The post must be {MAX_TEXT} characters or fewer."</span>)</span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div data-mark="3" style="display:flex;align-items:center;background:var(--accent-glow);border-radius:.4vmin;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"><span style="display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:1.35em;height:1.35em;border-radius:50%;background:var(--accent);color:var(--on-accent);
+  font-family:var(--font-mono);font-weight:800;font-size:calc(1.35em * .62)">3</span></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">165</span><span style="white-space:pre"><span style="color:var(--accent)">def</span> save_post(db_path, author, text):</span></div><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">166</span><span style="white-space:pre">    <span style="color:var(--accent-2)">"""Check the rules, save the post, and return the saved row."""</span></span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">169</span><span style="white-space:pre">    author_id = user_id_for(connection, author)</span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">171</span><span style="white-space:pre">        <span style="color:var(--accent-2)">"INSERT INTO posts (author_id, text, posted_at) VALUES (?, ?, ?)"</span>,</span></div></div>
+      <div style="width:25%;flex:none;display:flex;flex-direction:column;justify-content:center;
+        border-left:.45vmin solid var(--accent);padding-left:1.8vmin"><div style="font-family:var(--font-mono);font-size:2.6vmin;font-weight:800;color:var(--accent)">model</div><div data-step="3" style="display:flex;gap:1.2vmin;align-items:baseline;font-size:2.1vmin;line-height:1.3;margin-top:.9vmin"><span style="display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:2.4vmin;height:2.4vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);
+  font-family:var(--font-mono);font-weight:800;font-size:calc(2.4vmin * .62)">3</span><span>checks the business rules, finds the author in <code>users</code>, and saves the post</span></div></div></div><div style="display:flex;align-items:stretch;gap:2vmin">
+      <div style="flex:1;min-width:0;background:var(--code-bg);border:1px solid var(--line);border-radius:1vmin;
+        padding:.8vmin 1.6vmin;font-family:var(--font-mono);font-size:1.95vmin;line-height:1.36;overflow:hidden"><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">190</span><span style="white-space:pre"><span style="color:var(--muted)">#  VIEW</span></span></div><div style="display:flex;height:1.1em;align-items:center;color:var(--muted)"><span style="width:2.6ch;flex:none"></span><span style="width:5ch;flex:none"></span>&hellip;</div><div data-mark="4" style="display:flex;align-items:center;background:var(--accent-glow);border-radius:.4vmin;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"><span style="display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:1.35em;height:1.35em;border-radius:50%;background:var(--accent);color:var(--on-accent);
+  font-family:var(--font-mono);font-weight:800;font-size:calc(1.35em * .62)">4</span></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">194</span><span style="white-space:pre"><span style="color:var(--accent)">def</span> post_to_json(row):</span></div><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">195</span><span style="white-space:pre">    <span style="color:var(--accent)">return</span> {<span style="color:var(--accent-2)">"id"</span>: row[<span style="color:var(--accent-2)">"id"</span>], <span style="color:var(--accent-2)">"author"</span>: row[<span style="color:var(--accent-2)">"author"</span>],</span></div><div style="display:flex;align-items:center;opacity:.45;"><span style="width:2.6ch;flex:none;display:flex;justify-content:center"></span><span style="width:5ch;flex:none;text-align:right;padding-right:1.4ch;color:var(--muted);opacity:.6">196</span><span style="white-space:pre">            <span style="color:var(--accent-2)">"text"</span>: row[<span style="color:var(--accent-2)">"text"</span>], <span style="color:var(--accent-2)">"posted_at"</span>: row[<span style="color:var(--accent-2)">"posted_at"</span>]}</span></div></div>
+      <div style="width:25%;flex:none;display:flex;flex-direction:column;justify-content:center;
+        border-left:.45vmin solid var(--accent);padding-left:1.8vmin"><div style="font-family:var(--font-mono);font-size:2.6vmin;font-weight:800;color:var(--accent)">view</div><div data-step="4" style="display:flex;gap:1.2vmin;align-items:baseline;font-size:2.1vmin;line-height:1.3;margin-top:.9vmin"><span style="display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:2.4vmin;height:2.4vmin;border-radius:50%;background:var(--accent);color:var(--on-accent);
+  font-family:var(--font-mono);font-weight:800;font-size:calc(2.4vmin * .62)">4</span><span>turns the saved row into the answer</span></div></div></div></div><script>(function(){
+var sec=document.currentScript.closest('section'),cur=0;
+var steps=[].slice.call(sec.querySelectorAll('.steplink [data-step]')),marks=[].slice.call(sec.querySelectorAll('.steplink [data-mark]'));
+function set(n){cur=n;
+  steps.forEach(function(el){el.classList.toggle('on',!!cur&&el.dataset.step==cur);el.classList.toggle('off',!!cur&&el.dataset.step!=cur);});
+  marks.forEach(function(el){el.classList.toggle('on',!!cur&&el.dataset.mark==cur);el.classList.toggle('off',!!cur&&el.dataset.mark!=cur);});}
+steps.forEach(function(el){el.addEventListener('click',function(){set(cur==el.dataset.step?0:+el.dataset.step);});});
+sec.addEventListener('slideshow',function(){set(0);});
+})();</script><div class="foot"><span>Anyone Can Build · Class 10</span><span>11 / 31</span></div></section>
+<section class="slide" data-sid="change-a-rule" data-type="raw" data-show="1"><div class="kicker"><span class="i18n"><span class="en" lang="en">Live</span><span class="ja" lang="ja">ライブ</span></span></div><h1><span class="i18n"><span class="en" lang="en">Change a rule.</span><span class="ja" lang="ja">ルールを変える。</span></span></h1><div style="margin:auto 0;width:100%;display:flex;align-items:center;justify-content:center;gap:3vmin"><div style="font-family:var(--font-mono);font-size:3.6vmin;white-space:pre;
+    background:var(--code-bg);border:1px solid var(--line);border-radius:1vmin;padding:2.4vmin 3vmin;opacity:.55;">MAX_TEXT = 280</div><div style="font-size:5vmin;color:var(--muted);flex:none">&rarr;</div><div style="font-family:var(--font-mono);font-size:3.6vmin;white-space:pre;
+    background:var(--code-bg);border:1px solid var(--line);border-radius:1vmin;padding:2.4vmin 3vmin;">MAX_TEXT = <span style="color:var(--accent-2);font-weight:800">140</span></div></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en"><b>One line, in the model. Nothing else changed.</b></span><span class="ja" lang="ja"><b>モデルの中の一行。ほかは何も変わらなかった。</b></span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>12 / 31</span></div></section>
+<section class="slide" data-sid="case-study-instagram-posting-a-photo" data-type="raw" data-show="1"><div class="kicker"><span class="i18n"><span class="en" lang="en">Case study &middot; Instagram, posting a photo</span><span class="ja" lang="ja">ケーススタディ &middot; Instagram、写真を投稿する</span></span></div><div style="display:flex;justify-content:center;margin:auto 0"><svg viewBox="0 0 1200 590" style="width:94vw;max-height:64vh" role="img"><rect x="180" y="16" width="840" height="96" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="210" y="60" text-anchor="start" font-family="var(--font-mono)" font-size="28" font-weight="800" fill="var(--ink)">Frontend</text><text x="210" y="92" text-anchor="start" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">the app: you press Share</text><rect x="40" y="156" width="1120" height="264" rx="14" fill="none" stroke="var(--muted)" stroke-width="2.5" stroke-dasharray="10 9"/><text x="58" y="184" text-anchor="start" font-family="var(--font-mono)" font-size="20" font-weight="800" fill="var(--muted)">Backend</text><rect x="90" y="222" width="300" height="150" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="240" y="274" text-anchor="middle" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Controller</text><text x="240" y="314" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">takes the upload</text><line x1="398" y1="297" x2="434" y2="297" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-9,-8 -9,8 9,0" fill="var(--accent-2)" transform="translate(440,297)"/><rect x="450" y="222" width="300" height="150" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="600" y="274" text-anchor="middle" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Model</text><text x="600" y="314" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">who may see it,</text><text x="600" y="341" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">what a post is</text><line x1="758" y1="297" x2="794" y2="297" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-9,-8 -9,8 9,0" fill="var(--accent-2)" transform="translate(800,297)"/><rect x="810" y="222" width="300" height="150" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="960" y="274" text-anchor="middle" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">View</text><text x="960" y="314" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">shapes the post</text><text x="960" y="341" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">for the feed</text><line x1="240" y1="118" x2="240" y2="210" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,-9 8,-9 0,9" fill="var(--accent-2)" transform="translate(240,212)"/><line x1="960" y1="216" x2="960" y2="124" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,9 8,9 0,-9" fill="var(--accent-2)" transform="translate(960,122)"/><text x="256" y="140" text-anchor="start" font-family="var(--font-sans)" font-size="19" font-weight="700" fill="var(--accent-2)">a photo and a caption</text><text x="944" y="140" text-anchor="end" font-family="var(--font-sans)" font-size="19" font-weight="700" fill="var(--accent-2)">your post, in the feed</text><line x1="600" y1="378" x2="600" y2="460" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,-9 8,-9 0,9" fill="var(--accent-2)" transform="translate(600,462)"/><text x="616" y="452" text-anchor="start" font-family="var(--font-sans)" font-size="19" font-weight="700" fill="var(--accent-2)">keep this</text><rect x="450" y="470" width="300" height="100" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="600" y="512" text-anchor="middle" font-family="var(--font-mono)" font-size="26" font-weight="800" fill="var(--ink)">Database</text><text x="600" y="544" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">posts, and who follows whom</text></svg></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en">Instagram&rsquo;s server runs on Django, a framework built on these three jobs.</span><span class="ja" lang="ja">InstagramのサーバーはDjangoで動いている。この三つの仕事の上に作られたフレームワークだ。</span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>13 / 31</span></div></section>
+<section class="slide" data-sid="which-parts-would-change" data-type="raw" data-show="1"><div class="kicker"><span class="i18n"><span class="en" lang="en">Ask the code</span><span class="ja" lang="ja">コードに聞く</span></span></div><h1><span class="i18n"><span class="en" lang="en">Which parts would change?</span><span class="ja" lang="ja">どの部品が変わるか？</span></span></h1><div style="margin:auto 0;width:100%">
+  <ol class="code-steps" style="margin-top:0">
+    <li>Clone Timeline, <code>github.com/kreativitea/anyone-can-build-timeline</code>, and open your agent in the folder.</li>
+    <li>Ask it:
+      <div class="prompt-ex" style="margin-top:1.6vmin"><span class="lbl">Prompt</span><span class="caret">&#10095;</span> <span class="typewrite">For each of these six requests, which files in this app would change, and which part of server.py? 1 a dark mode &middot; 2 delete your own post &middot; 3 show who liked a post &middot; 4 posts up to 500 characters &middot; 5 a new detail on every post: where it was written &middot; 6 Timeline in Japanese as well as English.</span></div></li>
+  </ol></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en"><b>Your job:</b> open one of the files it names, and check that it is right.</span><span class="ja" lang="ja"><b>あなたの仕事：</b>エージェントが挙げたファイルを一つ開き、それが正しいかを確かめる。</span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>14 / 31</span></div></section>
+<section class="slide" data-sid="which-parts-would-change-2" data-type="raw" data-show="1"><div class="kicker"><span class="i18n"><span class="en" lang="en">Your answers</span><span class="ja" lang="ja">あなたたちの答え</span></span></div><h1><span class="i18n"><span class="en" lang="en">Which parts would change?</span><span class="ja" lang="ja">どの部品が変わるか？</span></span></h1><div style="margin:auto 0;width:100%"><table style="width:100%;border-collapse:collapse;font-size:2.7vmin;line-height:1.25">
+    <thead><tr><th></th><th></th><th style="font-family:var(--font-mono);font-size:1.9vmin;
+    font-weight:700;color:var(--muted);padding:0 .8vmin 1vmin;text-align:center">frontend</th><th style="font-family:var(--font-mono);font-size:1.9vmin;
+    font-weight:700;color:var(--muted);padding:0 .8vmin 1vmin;text-align:center">backend</th><th style="font-family:var(--font-mono);font-size:1.9vmin;
+    font-weight:700;color:var(--muted);padding:0 .8vmin 1vmin;text-align:center">database</th><th></th></tr></thead><tbody><tr><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;width:4vmin"><span style="font-family:var(--font-mono);font-weight:800;color:var(--accent)">1</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;">A dark mode</td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;color:var(--muted);font-size:2.2vmin;width:32vmin"><span style="visibility:hidden"></span></td></tr><tr><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;width:4vmin"><span style="font-family:var(--font-mono);font-weight:800;color:var(--accent)">2</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;">Delete your own post</td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;color:var(--muted);font-size:2.2vmin;width:32vmin"><span style="visibility:hidden">a button, and only the author may</span></td></tr><tr><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;width:4vmin"><span style="font-family:var(--font-mono);font-weight:800;color:var(--accent)">3</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;">Show who liked a post</td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;color:var(--muted);font-size:2.2vmin;width:32vmin"><span style="visibility:hidden">the likes table</span></td></tr><tr><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;width:4vmin"><span style="font-family:var(--font-mono);font-weight:800;color:var(--accent)">4</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;">Posts up to 500 characters</td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;color:var(--muted);font-size:2.2vmin;width:32vmin"><span style="visibility:hidden">the rule, and the frontend&rsquo;s count</span></td></tr><tr><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;width:4vmin"><span style="font-family:var(--font-mono);font-weight:800;color:var(--accent)">5</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;">A new detail on every post: where it was written</td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;color:var(--muted);font-size:2.2vmin;width:32vmin"><span style="visibility:hidden">a new column</span></td></tr><tr><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;width:4vmin"><span style="font-family:var(--font-mono);font-weight:800;color:var(--accent)">6</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;">Timeline in Japanese as well as English</td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span class="pq" role="checkbox" aria-checked="false" tabindex="-1"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;color:var(--muted);font-size:2.2vmin;width:32vmin"><span style="visibility:hidden">the page&rsquo;s words, and the backend&rsquo;s error messages</span></td></tr></tbody></table></div><style>.pq{display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--line);border-radius:.6vmin;color:var(--accent-2);font-size:2.6vmin;font-weight:800;cursor:pointer;user-select:none}
+    .pq:hover{border-color:var(--muted)}.pq.on{border-color:var(--accent-2)}.pq.on::after{content:"✓"}</style><script>(function(){var sec=document.currentScript.closest('section');
+[].slice.call(sec.querySelectorAll('.pq')).forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();
+  var on=b.classList.toggle('on');b.setAttribute('aria-checked',on?'true':'false');});});
+})();</script><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en"><b>Mark every part each request changes.</b></span><span class="ja" lang="ja"><b>それぞれの依頼で変わる部品に、すべて印をつける。</b></span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>15 / 31</span></div></section>
+<section class="slide" data-sid="which-parts-would-change-3" data-type="raw"><div class="kicker"><span class="i18n"><span class="en" lang="en">The answers</span><span class="ja" lang="ja">答え</span></span></div><h1><span class="i18n"><span class="en" lang="en">Which parts would change?</span><span class="ja" lang="ja">どの部品が変わるか？</span></span></h1><div style="margin:auto 0;width:100%"><table style="width:100%;border-collapse:collapse;font-size:2.7vmin;line-height:1.25">
+    <thead><tr><th></th><th></th><th style="font-family:var(--font-mono);font-size:1.9vmin;
+    font-weight:700;color:var(--muted);padding:0 .8vmin 1vmin;text-align:center">frontend</th><th style="font-family:var(--font-mono);font-size:1.9vmin;
+    font-weight:700;color:var(--muted);padding:0 .8vmin 1vmin;text-align:center">backend</th><th style="font-family:var(--font-mono);font-size:1.9vmin;
+    font-weight:700;color:var(--muted);padding:0 .8vmin 1vmin;text-align:center">database</th><th></th></tr></thead><tbody><tr><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;width:4vmin"><span style="font-family:var(--font-mono);font-weight:800;color:var(--accent)">1</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;">A dark mode</td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--accent-2);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800">&#10003;</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--line);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--line);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;color:var(--muted);font-size:2.2vmin;width:32vmin"></td></tr><tr><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;width:4vmin"><span style="font-family:var(--font-mono);font-weight:800;color:var(--accent)">2</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;">Delete your own post</td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--accent-2);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800">&#10003;</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--accent-2);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800">&#10003;</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--line);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;color:var(--muted);font-size:2.2vmin;width:32vmin">a button, and only the author may</td></tr><tr><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;width:4vmin"><span style="font-family:var(--font-mono);font-weight:800;color:var(--accent)">3</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;">Show who liked a post</td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--accent-2);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800">&#10003;</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--accent-2);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800">&#10003;</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--accent-2);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800">&#10003;</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;color:var(--muted);font-size:2.2vmin;width:32vmin">the likes table</td></tr><tr><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;width:4vmin"><span style="font-family:var(--font-mono);font-weight:800;color:var(--accent)">4</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;">Posts up to 500 characters</td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--accent-2);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800">&#10003;</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--accent-2);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800">&#10003;</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--line);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;color:var(--muted);font-size:2.2vmin;width:32vmin">the rule, and the frontend&rsquo;s count</td></tr><tr><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;width:4vmin"><span style="font-family:var(--font-mono);font-weight:800;color:var(--accent)">5</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;">A new detail on every post: where it was written</td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--accent-2);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800">&#10003;</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--accent-2);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800">&#10003;</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--accent-2);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800">&#10003;</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;color:var(--muted);font-size:2.2vmin;width:32vmin">a new column</td></tr><tr><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;width:4vmin"><span style="font-family:var(--font-mono);font-weight:800;color:var(--accent)">6</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;">Timeline in Japanese as well as English</td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--accent-2);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800">&#10003;</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--accent-2);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800">&#10003;</span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;text-align:center;width:13vmin"><span style="display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:3.4vmin;height:3.4vmin;
+    border:.3vmin solid var(--line);border-radius:.6vmin;color:var(--accent-2);
+    font-size:2.6vmin;font-weight:800"></span></td><td style="border-top:1px solid var(--line);padding:1.3vmin .8vmin;color:var(--muted);font-size:2.2vmin;width:32vmin">the page&rsquo;s words, and the backend&rsquo;s error messages</td></tr></tbody></table></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en"><b>A new table or a new column reaches every layer.</b></span><span class="ja" lang="ja"><b>新しいテーブルや新しい列は、すべての層に届く。</b></span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>16 / 31</span></div></section>
+<section class="slide" data-sid="backend-architecture-check-the-promise" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">Backend architecture &middot; check the promise</span><span class="ja" lang="ja">バックエンドのアーキテクチャ &middot; 約束の確認</span></span></div><ul class="big"><li class="check"><span class="i18n"><span class="en" lang="en">Newest first: the backend formulates the query, the database executes it</span><span class="ja" lang="ja">新しい順：バックエンドがクエリを組み立て、データベースがそれを実行する</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">MVC: model, view, controller</span><span class="ja" lang="ja">MVC：モデル、ビュー、コントローラー</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">A rule changed in one place</span><span class="ja" lang="ja">ルールが一か所で変わった</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">Which parts change, for six features</span><span class="ja" lang="ja">六つの機能で、どの部品が変わるか</span></span></li></ul><div class="foot"><span>Anyone Can Build · Class 10</span><span>17 / 31</span></div></section>
+<section class="slide" data-sid="part-frontend-architecture" data-type="divider"><div class="divider" style="margin:auto 0"><div class="no"><span class="i18n"><span class="en" lang="en">Part 4</span><span class="ja" lang="ja">第4部</span></span></div><h1><span class="i18n"><span class="en" lang="en">Frontend architecture</span><span class="ja" lang="ja">フロントエンドのアーキテクチャ</span></span></h1><div class="promise"><span class="i18n"><span class="en" lang="en">What is inside the frontend, and the shape every layer shares.</span><span class="ja" lang="ja">フロントエンドの中に何があるか、そしてどの層にも共通する形。</span></span></div><div class="spine"><div class="seg"><span class="sn">1</span><span class="i18n"><span class="en" lang="en">Intro to architecture</span><span class="ja" lang="ja">アーキテクチャ入門</span></span></div><div class="seg"><span class="sn">2</span><span class="i18n"><span class="en" lang="en">Database</span><span class="ja" lang="ja">データベース</span></span></div><div class="seg"><span class="sn">3</span><span class="i18n"><span class="en" lang="en">Backend architecture</span><span class="ja" lang="ja">バックエンドのアーキテクチャ</span></span></div><div class="seg active"><span class="sn">4</span><span class="i18n"><span class="en" lang="en">Frontend architecture</span><span class="ja" lang="ja">フロントエンドのアーキテクチャ</span></span></div><div class="seg"><span class="sn">5</span><span class="i18n"><span class="en" lang="en">Journal</span><span class="ja" lang="ja">ジャーナル</span></span></div></div></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>18 / 31</span></div></section>
+<section class="slide" data-sid="the-frontend-has-an-inside-too" data-type="raw"><div class="kicker"><span class="i18n"><span class="en" lang="en">The frontend has an inside too</span><span class="ja" lang="ja">フロントエンドにも内側がある</span></span></div><div style="display:flex;justify-content:center;margin:auto 0"><svg viewBox="0 0 1200 320" style="width:94vw;max-height:54vh" role="img"><rect x="50" y="44" width="1100" height="260" rx="14" fill="none" stroke="var(--muted)" stroke-width="2.5" stroke-dasharray="10 9"/><text x="68" y="76" text-anchor="start" font-family="var(--font-mono)" font-size="22" font-weight="800" fill="var(--muted)">Frontend</text><rect x="80" y="96" width="320" height="176" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="240" y="152" text-anchor="middle" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">index.html</text><text x="240" y="192" text-anchor="middle" font-family="var(--font-sans)" font-size="22" font-weight="800" fill="var(--accent-2)">structure</text><text x="240" y="224" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">what is on the page</text><rect x="440" y="96" width="320" height="176" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="600" y="152" text-anchor="middle" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">style.css</text><text x="600" y="192" text-anchor="middle" font-family="var(--font-sans)" font-size="22" font-weight="800" fill="var(--accent-2)">presentation</text><text x="600" y="224" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">how it appears</text><rect x="800" y="96" width="320" height="176" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="960" y="152" text-anchor="middle" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">app.js</text><text x="960" y="192" text-anchor="middle" font-family="var(--font-sans)" font-size="22" font-weight="800" fill="var(--accent-2)">behaviour</text><text x="960" y="224" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">what happens when</text><text x="960" y="250" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">you press Post</text></svg></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en">Timeline&rsquo;s page, opened</span><span class="ja" lang="ja">Timelineのページを、開いたもの</span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>19 / 31</span></div></section>
+<section class="slide" data-sid="change-the-look" data-type="raw" data-show="1"><div class="kicker"><span class="i18n"><span class="en" lang="en">Live</span><span class="ja" lang="ja">ライブ</span></span></div><h1><span class="i18n"><span class="en" lang="en">Change the look.</span><span class="ja" lang="ja">見た目を変える。</span></span></h1><div style="margin:auto 0;width:100%;display:flex;align-items:center;justify-content:center;gap:3vmin"><div style="font-family:var(--font-mono);font-size:3.6vmin;white-space:pre;
+    background:var(--code-bg);border:1px solid var(--line);border-radius:1vmin;padding:2.4vmin 3vmin;opacity:.55;">background: var(--button);</div><div style="font-size:5vmin;color:var(--muted);flex:none">&rarr;</div><div style="font-family:var(--font-mono);font-size:3.6vmin;white-space:pre;
+    background:var(--code-bg);border:1px solid var(--line);border-radius:1vmin;padding:2.4vmin 3vmin;">background: <span style="color:var(--accent-2);font-weight:800">#6c71c4</span>;</div></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en"><b>One file. The backend did not change.</b></span><span class="ja" lang="ja"><b>ファイル一つ。バックエンドは変わらなかった。</b></span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>20 / 31</span></div></section>
+<section class="slide" data-sid="a-phone-app" data-type="raw"><div class="kicker"><span class="i18n"><span class="en" lang="en">A phone app</span><span class="ja" lang="ja">携帯アプリ</span></span></div><div style="display:flex;justify-content:center;margin:auto 0"><svg viewBox="0 0 1240 460" style="width:94vw;max-height:60vh" role="img"><rect x="40" y="20" width="210" height="420" rx="34" fill="var(--panel)" stroke="var(--ink)" stroke-width="3.4"/><rect x="110" y="36" width="70" height="10" rx="5" fill="var(--line)" stroke="none" stroke-width="3"/><text x="66" y="90" text-anchor="start" font-family="var(--font-sans)" font-size="22" font-weight="800" fill="var(--ink)">Timeline</text><rect x="64" y="106" width="162" height="50" rx="8" fill="var(--paper)" stroke="var(--line)" stroke-width="2"/><rect x="162" y="166" width="64" height="26" rx="13" fill="var(--accent)" stroke="none" stroke-width="3"/><text x="194" y="184" text-anchor="middle" font-family="var(--font-sans)" font-size="14" font-weight="800" fill="var(--on-accent)">Post</text><rect x="64" y="210" width="162" height="58" rx="8" fill="var(--chip)" stroke="none" stroke-width="3"/><rect x="76" y="222" width="54" height="9" rx="4" fill="var(--muted)" stroke="none" stroke-width="3"/><rect x="76" y="240" width="130" height="8" rx="4" fill="var(--line)" stroke="none" stroke-width="3"/><rect x="64" y="280" width="162" height="58" rx="8" fill="var(--chip)" stroke="none" stroke-width="3"/><rect x="76" y="292" width="54" height="9" rx="4" fill="var(--muted)" stroke="none" stroke-width="3"/><rect x="76" y="310" width="130" height="8" rx="4" fill="var(--line)" stroke="none" stroke-width="3"/><rect x="64" y="350" width="162" height="58" rx="8" fill="var(--chip)" stroke="none" stroke-width="3"/><rect x="76" y="362" width="54" height="9" rx="4" fill="var(--muted)" stroke="none" stroke-width="3"/><rect x="76" y="380" width="130" height="8" rx="4" fill="var(--line)" stroke="none" stroke-width="3"/><line x1="254" y1="230" x2="288" y2="230" stroke="var(--muted)" stroke-width="2.5" stroke-dasharray="6 6"/><rect x="296" y="142" width="262" height="176" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="427" y="196" text-anchor="middle" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">View</text><text x="427" y="236" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">the screen</text><line x1="574" y1="230" x2="594" y2="230" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-9,-8 -9,8 9,0" fill="var(--accent-2)" transform="translate(598,230)"/><polygon points="9,-8 9,8 -9,0" fill="var(--accent-2)" transform="translate(570,230)"/><rect x="610" y="142" width="262" height="176" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="741" y="196" text-anchor="middle" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">ViewModel</text><text x="741" y="236" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">gets the data ready</text><text x="741" y="262" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">for this screen, and takes</text><text x="741" y="288" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">what the person does</text><line x1="888" y1="230" x2="908" y2="230" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-9,-8 -9,8 9,0" fill="var(--accent-2)" transform="translate(912,230)"/><polygon points="9,-8 9,8 -9,0" fill="var(--accent-2)" transform="translate(884,230)"/><rect x="924" y="142" width="262" height="176" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.4"/><text x="1055" y="196" text-anchor="middle" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Model</text><text x="1055" y="236" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">the data, and</text><text x="1055" y="262" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">the business logic</text></svg></div><div class="sub center" style="margin-top:1.6vmin"><span class="i18n"><span class="en" lang="en">Android&rsquo;s guide gives each screen a <b>ViewModel</b>. The searchable name for this shape: <b>MVVM</b>.</span><span class="ja" lang="ja">Androidのガイドは、各画面に<b>ViewModel</b>を置く。この形を検索するときの名前：<b>MVVM</b>。</span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>21 / 31</span></div></section>
+<section class="slide" data-sid="the-same-shape-in-every-layer" data-type="raw"><div class="kicker"><span class="i18n"><span class="en" lang="en">The same shape in every layer</span><span class="ja" lang="ja">どの層にも同じ形がある</span></span></div><div style="display:flex;justify-content:center;margin:auto 0"><svg viewBox="0 0 1200 654" style="width:94vw;max-height:74vh" role="img"><text x="437" y="54" text-anchor="middle" font-family="var(--font-sans)" font-size="26" font-weight="800" fill="var(--orange)">data and rules</text><text x="723" y="54" text-anchor="middle" font-family="var(--font-sans)" font-size="26" font-weight="800" fill="var(--violet)">what comes in</text><text x="1009" y="54" text-anchor="middle" font-family="var(--font-sans)" font-size="26" font-weight="800" fill="var(--accent)">what goes out</text><rect x="40" y="76" width="1120" height="128" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.6"/><text x="74" y="138" text-anchor="start" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Frontend</text><text x="74" y="170" text-anchor="start" font-family="var(--font-sans)" font-size="19" font-weight="600" fill="var(--muted)">a phone app</text><rect x="306" y="96" width="262" height="88" rx="10" fill="var(--paper)" stroke="var(--orange)" stroke-width="3.2"/><text x="437" y="150" text-anchor="middle" font-family="var(--font-mono)" font-size="22" font-weight="800" fill="var(--ink)">Model</text><rect x="592" y="96" width="262" height="88" rx="10" fill="var(--paper)" stroke="var(--violet)" stroke-width="3.2"/><text x="723" y="150" text-anchor="middle" font-family="var(--font-mono)" font-size="22" font-weight="800" fill="var(--ink)">ViewModel</text><rect x="878" y="96" width="262" height="88" rx="10" fill="var(--paper)" stroke="var(--accent)" stroke-width="3.2"/><text x="1009" y="150" text-anchor="middle" font-family="var(--font-mono)" font-size="22" font-weight="800" fill="var(--ink)">View</text><line x1="136" y1="216" x2="136" y2="256" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,-9 8,-9 0,9" fill="var(--accent-2)" transform="translate(136,258)"/><line x1="1064" y1="256" x2="1064" y2="216" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,9 8,9 0,-9" fill="var(--accent-2)" transform="translate(1064,214)"/><text x="600" y="243" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="700" fill="var(--accent-2)">interface</text><rect x="40" y="268" width="1120" height="128" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.6"/><text x="74" y="342" text-anchor="start" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Backend</text><rect x="306" y="288" width="262" height="88" rx="10" fill="var(--paper)" stroke="var(--orange)" stroke-width="3.2"/><text x="437" y="342" text-anchor="middle" font-family="var(--font-mono)" font-size="22" font-weight="800" fill="var(--ink)">Model</text><rect x="592" y="288" width="262" height="88" rx="10" fill="var(--paper)" stroke="var(--violet)" stroke-width="3.2"/><text x="723" y="342" text-anchor="middle" font-family="var(--font-mono)" font-size="22" font-weight="800" fill="var(--ink)">Controller</text><rect x="878" y="288" width="262" height="88" rx="10" fill="var(--paper)" stroke="var(--accent)" stroke-width="3.2"/><text x="1009" y="342" text-anchor="middle" font-family="var(--font-mono)" font-size="22" font-weight="800" fill="var(--ink)">View</text><line x1="136" y1="408" x2="136" y2="448" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,-9 8,-9 0,9" fill="var(--accent-2)" transform="translate(136,450)"/><line x1="1064" y1="448" x2="1064" y2="408" stroke="var(--accent-2)" stroke-width="3"/><polygon points="-8,9 8,9 0,-9" fill="var(--accent-2)" transform="translate(1064,406)"/><text x="600" y="435" text-anchor="middle" font-family="var(--font-sans)" font-size="19" font-weight="700" fill="var(--accent-2)">interface</text><rect x="40" y="460" width="1120" height="128" rx="14" fill="var(--panel)" stroke="var(--accent)" stroke-width="3.6"/><text x="74" y="534" text-anchor="start" font-family="var(--font-mono)" font-size="30" font-weight="800" fill="var(--ink)">Database</text><rect x="306" y="480" width="262" height="88" rx="10" fill="var(--paper)" stroke="var(--orange)" stroke-width="3.2"/><text x="437" y="518" text-anchor="middle" font-family="var(--font-mono)" font-size="22" font-weight="800" fill="var(--ink)">tables</text><text x="437" y="548" text-anchor="middle" font-family="var(--font-sans)" font-size="18" font-weight="600" fill="var(--muted)">and constraints</text><rect x="592" y="480" width="262" height="88" rx="10" fill="var(--paper)" stroke="var(--violet)" stroke-width="3.2"/><text x="723" y="518" text-anchor="middle" font-family="var(--font-mono)" font-size="22" font-weight="800" fill="var(--ink)">the query</text><text x="723" y="548" text-anchor="middle" font-family="var(--font-sans)" font-size="18" font-weight="600" fill="var(--muted)">executed, not chosen</text><rect x="878" y="480" width="262" height="88" rx="10" fill="var(--paper)" stroke="var(--accent)" stroke-width="3.2"/><text x="1009" y="534" text-anchor="middle" font-family="var(--font-mono)" font-size="22" font-weight="800" fill="var(--ink)">views</text><text x="600" y="634" text-anchor="middle" font-family="var(--font-sans)" font-size="27" font-weight="800" fill="var(--accent)">a pattern you notice, not a law</text></svg></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>22 / 31</span></div></section>
+<section class="slide" data-sid="how-do-you-know-it-is-good" data-type="list"><h1><span class="i18n"><span class="en" lang="en">How do you know it is good?</span><span class="ja" lang="ja">それがよいかどうか、どう分かるか？</span></span></h1><ol class="big num"><li><span class="i18n"><span class="en" lang="en">Each part has one job</span><span class="ja" lang="ja">部品ごとに一つの仕事がある</span></span></li><li><span class="i18n"><span class="en" lang="en">When something changes, one place changes</span><span class="ja" lang="ja">何かが変わったとき、変わるのは一か所</span></span></li><li><span class="i18n"><span class="en" lang="en">You can say why each job lives where it does</span><span class="ja" lang="ja">それぞれの仕事がなぜそこにあるのかを言える</span></span></li></ol><div class="foot"><span>Anyone Can Build · Class 10</span><span>23 / 31</span></div></section>
+<section class="slide" data-sid="words-to-search" data-type="table"><h1><span class="i18n"><span class="en" lang="en">Words to search</span><span class="ja" lang="ja">検索する言葉</span></span></h1><table class="kv even"><thead><tr><th><span class="i18n"><span class="en" lang="en">type this</span><span class="ja" lang="ja">これを打ち込む</span></span></th><th><span class="i18n"><span class="en" lang="en">what it means</span><span class="ja" lang="ja">意味</span></span></th></tr></thead><tbody><tr><td class="k">separation of concerns</td><td><span class="i18n"><span class="en" lang="en">each part of a program has one job</span><span class="ja" lang="ja">プログラムの各部品に、仕事が一つずつある</span></span></td></tr><tr><td class="k">three-tier architecture</td><td><span class="i18n"><span class="en" lang="en">frontend, backend and database, each on its own</span><span class="ja" lang="ja">フロントエンド、バックエンド、データベースが、それぞれ独立している</span></span></td></tr><tr><td class="k">business logic</td><td><span class="i18n"><span class="en" lang="en">the rules that make the product what it is</span><span class="ja" lang="ja">プロダクトを、そのプロダクトにしているルール</span></span></td></tr><tr><td class="k">request, response</td><td><span class="i18n"><span class="en" lang="en">a message to the server, and its answer</span><span class="ja" lang="ja">サーバーへのメッセージと、その答え</span></span></td></tr><tr><td class="k">interface, contract</td><td><span class="i18n"><span class="en" lang="en">where two parts meet, and what each side sends and returns</span><span class="ja" lang="ja">二つの部品が出会うところと、それぞれの側が何を送り、何を返すか</span></span></td></tr><tr><td class="k">data model: entity, attribute, relationship</td><td><span class="i18n"><span class="en" lang="en">what a product stores, the details of each, and how they link</span><span class="ja" lang="ja">プロダクトが何を保存するか、そのそれぞれの詳細、そしてそれらがどうつながるか</span></span></td></tr><tr><td class="k">normalization</td><td><span class="i18n"><span class="en" lang="en">each fact stored once; everything else points at it</span><span class="ja" lang="ja">それぞれの事実は一度だけ保存し、ほかはすべてそれを指す</span></span></td></tr><tr><td class="k">constraint</td><td><span class="i18n"><span class="en" lang="en">a rule the database enforces on its tables</span><span class="ja" lang="ja">データベースがテーブルに課すルール</span></span></td></tr><tr><td class="k">model-view-controller (MVC)</td><td><span class="i18n"><span class="en" lang="en">the backend&rsquo;s three jobs: take the request, apply the rules, shape the answer</span><span class="ja" lang="ja">バックエンドの三つの仕事：リクエストを受け取り、ルールを適用し、答えの形を整える</span></span></td></tr><tr><td class="k">MVVM</td><td><span class="i18n"><span class="en" lang="en">a ViewModel behind each screen</span><span class="ja" lang="ja">各画面の裏にあるViewModel</span></span></td></tr></tbody></table><div class="foot"><span>Anyone Can Build · Class 10</span><span>24 / 31</span></div></section>
+<section class="slide" data-sid="add-likes-and-follows-to-timeline" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">Your homework &middot; the link and the details are on the class page</span><span class="ja" lang="ja">宿題 &middot; リンクと詳細はクラスのページにある</span></span></div><h1><span class="i18n"><span class="en" lang="en">Add likes and follows to Timeline.</span><span class="ja" lang="ja">Timelineに、いいねとフォローを加える。</span></span></h1><ol class="big num"><li><span class="i18n"><span class="en" lang="en">Clone it. Ask your agent: <i>explain this app&rsquo;s architecture. Which file is the controller, the model, the view?</i> Write the answer down in your own words.</span><span class="ja" lang="ja">クローンする。エージェントに聞く：<i>explain this app&rsquo;s architecture. Which file is the controller, the model, the view?</i> その答えを、自分の言葉で書き留める。</span></span></li><li><span class="i18n"><span class="en" lang="en">With your agent, add likes, then follows, each with a test for its rule: <i>nobody likes a post twice &middot; you see the posts of the people you follow.</i></span><span class="ja" lang="ja">エージェントと一緒に、まずいいね、次にフォローを加える。それぞれ、そのルールのテストつきで：<i>誰も同じ投稿に二度いいねできない &middot; フォローしている人の投稿が見える。</i></span></span></li><li><span class="i18n"><span class="en" lang="en">Write three lines: which parts changed, and why.</span><span class="ja" lang="ja">三行書く：どの部品が変わったか、そしてなぜか。</span></span></li></ol><div class="foot"><span>Anyone Can Build · Class 10</span><span>25 / 31</span></div></section>
+<section class="slide" data-sid="frontend-architecture-check-the-promise" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">Frontend architecture &middot; check the promise</span><span class="ja" lang="ja">フロントエンドのアーキテクチャ &middot; 約束の確認</span></span></div><ul class="big"><li class="check"><span class="i18n"><span class="en" lang="en">The frontend: HTML, CSS, JavaScript</span><span class="ja" lang="ja">フロントエンド：HTML、CSS、JavaScript</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">A phone app: a ViewModel behind each screen</span><span class="ja" lang="ja">携帯アプリ：各画面の裏にViewModelがある</span></span></li><li class="check"><span class="i18n"><span class="en" lang="en"><b>The same shape in every layer: data and rules, what comes in, what goes out</b></span><span class="ja" lang="ja"><b>どの層にも同じ形がある：データとルール、入ってくるもの、出ていくもの</b></span></span></li><li class="check"><span class="i18n"><span class="en" lang="en">Three tests for good architecture</span><span class="ja" lang="ja">よいアーキテクチャを見分ける三つのテスト</span></span></li></ul><div class="foot"><span>Anyone Can Build · Class 10</span><span>26 / 31</span></div></section>
+<section class="slide" data-sid="what-you-can-do-now" data-type="content"><h1><span class="i18n"><span class="en" lang="en">What you can do now</span><span class="ja" lang="ja">いまできること</span></span></h1><ul class="big"><li><span class="i18n"><span class="en" lang="en">The three parts of any product, and the job of each</span><span class="ja" lang="ja">どんなプロダクトにもある三つの部品と、それぞれの仕事</span></span></li><li><span class="i18n"><span class="en" lang="en">Why a backend exists: many people, one shared state</span><span class="ja" lang="ja">バックエンドがある理由：多くの人と、一つの共有された状態</span></span></li><li><span class="i18n"><span class="en" lang="en">A data model, designed and tested against change</span><span class="ja" lang="ja">データモデル。設計し、変更に耐えるかを試した</span></span></li><li><span class="i18n"><span class="en" lang="en">The inside of the backend and the frontend</span><span class="ja" lang="ja">バックエンドとフロントエンドの内側</span></span></li><li><span class="i18n"><span class="en" lang="en"><b>How to tell good architecture: when something changes, how much else has to change?</b></span><span class="ja" lang="ja"><b>よいアーキテクチャの見分け方：何かが変わったとき、ほかにどれだけ変えなければならないか？</b></span></span></li></ul><div class="sub"><span class="i18n"><span class="en" lang="en">next Friday: <b>Testing</b>, then <b>Studio: the design doc</b>, for your own product.</span><span class="ja" lang="ja">来週の金曜：<b>テスト</b>、続けて<b>スタジオ：設計ドキュメント</b>。自分のプロダクトで。</span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>27 / 31</span></div></section>
+<section class="slide close" data-sid="it-can-write-almost-any-part-of" data-type="close"><div class="center" style="margin:auto"><div class="tag"><span class="i18n"><span class="en" lang="en">Anyone can build.</span><span class="ja" lang="ja">誰でもつくれる。</span></span></div><div class="big-statement" style="margin-top:3vmin"><span class="i18n"><span class="en" lang="en">It can write almost any part of this faster than you. It cannot tell you what your parts are.</span><span class="ja" lang="ja">ほとんどどの部品も、それはあなたより速く書ける。けれども、あなたの部品が何なのかは教えてくれない。</span></span></div></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>28 / 31</span></div></section>
+<section class="slide" data-sid="your-journal-lives-in-your-tracker" data-type="checklist"><h1><span class="i18n"><span class="en" lang="en">Your journal lives in your tracker</span><span class="ja" lang="ja">ジャーナルはトラッカーの中にある</span></span></h1><ul class="check-list"><li><span class="i18n"><span class="en" lang="en">open your tracker, <code>anyone-can-build-tracker</code></span><span class="ja" lang="ja">自分のトラッカー <code>anyone-can-build-tracker</code> を開く</span></span></li><li>today&rsquo;s dated entry in <code>journal.md</code></li><li><b>commit and push</b></li><li>open the repository on GitHub: <b>is your entry there?</b></li></ul><div class="sub"><span class="i18n"><span class="en" lang="en">This is your tracker &mdash; <b>20% of your grade</b>.</span><span class="ja" lang="ja">これがあなたのトラッカー &mdash; <b>成績の20%</b>。</span></span></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>29 / 31</span></div></section>
+<section class="slide" data-sid="journal-entry" data-type="list"><div class="kicker"><span class="i18n"><span class="en" lang="en">This week on the loop: Design</span><span class="ja" lang="ja">今週のループ上の位置：Design</span></span></div><h1><span class="i18n"><span class="en" lang="en">Journal entry</span><span class="ja" lang="ja">ジャーナルの記入</span></span></h1><ol class="big num"><li><span class="i18n"><span class="en" lang="en">What did you do?</span><span class="ja" lang="ja">何をしたか？</span></span></li><li><span class="i18n"><span class="en" lang="en">What did you already know?</span><span class="ja" lang="ja">すでに何を知っていたか？</span></span></li><li><span class="i18n"><span class="en" lang="en">What did you think you knew &mdash; and what changed?</span><span class="ja" lang="ja">知っていると思っていたことは何か &mdash; そして、何が変わったか？</span></span></li><li><span class="i18n"><span class="en" lang="en">What did you learn?</span><span class="ja" lang="ja">何を学んだか？</span></span></li><li><span class="i18n"><span class="en" lang="en">What do you carry forward?</span><span class="ja" lang="ja">何を次へ持っていくか？</span></span></li></ol><div class="foot"><span>Anyone Can Build · Class 10</span><span>30 / 31</span></div></section>
+<section class="slide close" data-sid="next-friday-testing" data-type="close"><div class="center" style="margin:auto"><div class="tag"><span class="i18n"><span class="en" lang="en">Anyone can build.</span><span class="ja" lang="ja">誰でもつくれる。</span></span></div><div class="big-statement" style="margin-top:3vmin"><span class="i18n"><span class="en" lang="en"><span style="color:var(--muted);font-weight:500">next Friday:</span> Testing.</span><span class="ja" lang="ja"><span style="color:var(--muted);font-weight:500">来週の金曜：</span>テスト。</span></span></div></div><div class="foot"><span>Anyone Can Build · Class 10</span><span>31 / 31</span></div></section></div><div class="segbar" id="segbar"><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div><div class="sg"><div class="fl"></div></div></div><div class="minispine" id="minispine"><div class="chip" data-k="0"><span class="cn">1</span><span class="cl"><span class="i18n"><span class="en" lang="en">Intro to architecture</span><span class="ja" lang="ja">アーキテクチャ入門</span></span></span></div><div class="chip" data-k="1"><span class="cn">2</span><span class="cl"><span class="i18n"><span class="en" lang="en">Database</span><span class="ja" lang="ja">データベース</span></span></span></div><div class="chip" data-k="2"><span class="cn">3</span><span class="cl"><span class="i18n"><span class="en" lang="en">Backend architecture</span><span class="ja" lang="ja">バックエンドのアーキテクチャ</span></span></span></div><div class="chip" data-k="3"><span class="cn">4</span><span class="cl"><span class="i18n"><span class="en" lang="en">Frontend architecture</span><span class="ja" lang="ja">フロントエンドのアーキテクチャ</span></span></span></div><div class="chip" data-k="4"><span class="cn">5</span><span class="cl"><span class="i18n"><span class="en" lang="en">Journal</span><span class="ja" lang="ja">ジャーナル</span></span></span></div></div>
+<div class="deck-chrome"><button id="themebtn" class="theme-toggle" role="switch" aria-label="Toggle light / dark" title="Toggle light / dark (t)"><span class="tt-track"><span class="tt-ico sun">&#9728;</span><span class="tt-ico moon">&#9790;</span><span class="tt-knob"></span></span></button><button id="langbtn" class="lang-toggle" role="switch" aria-label="Toggle Japanese / English" title="日本語 / English (j)"><span class="lt-track"><span class="lt-knob"></span><span class="lt-opt en">E</span><span class="lt-opt ja">J</span></span></button></div>
+<script>
+const slides=[...document.querySelectorAll('.slide')];let i=0;
+const SLABELS=["Software architecture: the backend and the frontend","part-Backend architecture","Where should the sorting happen?","On the frontend","In the database","In the backend","Why the backend decides","Sort these, with your agent","Inside the backend","The demo s own server, in three parts","Follow one post through the code","Change a rule.","Case study Instagram, posting a photo","Which parts would change?","Which parts would change?","Which parts would change?","Backend architecture check the promise","part-Frontend architecture","The frontend has an inside too","Change the look.","A phone app","The same shape in every layer","How do you know it is good?","Words to search","Add likes and follows to Timeline.","Frontend architecture check the promise","What you can do now","It can write almost any part of this faster than you. It cannot tell you what your parts are.","Your journal lives in your tracker","Journal entry","next Friday: Testing."];
+const root=document.documentElement, tbtn=document.getElementById('themebtn');
+let toggleLang=null;   // assigned below, but only by a deck that has translations
+function paintTheme(){tbtn.setAttribute('aria-checked', root.dataset.theme==='dark');}
+function toggleTheme(){root.dataset.theme = root.dataset.theme==='dark'?'light':'dark';
+  try{localStorage.setItem('kgtheme',root.dataset.theme);}catch(e){} paintTheme();}
+/* True full screen, the way a slideshow app does it: the Fullscreen API, which takes
+   the whole screen and leaves no chrome at all. The browser's own window fullscreen
+   (Cmd+Ctrl+F, F11) is not the same thing — it keeps a toolbar that slides back down
+   whenever the pointer nears the top of the screen, which on a projector is a toolbar
+   the room watches appear. Escape leaves; the browser handles that key itself, so
+   there is nothing here to bind it to. The prefixed names are for older Safari, and
+   the promise is caught because a browser may simply refuse (an iframe without the
+   permission, a policy) and an unhandled rejection is not worth a console error mid-class. */
+function fullToggle(doc){
+  var d = doc || document;
+  var out = d.exitFullscreen || d.webkitExitFullscreen;
+  if(d.fullscreenElement || d.webkitFullscreenElement){ out && out.call(d); return; }
+  var el = d.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if(!req) return;
+  var p = req.call(el); if(p && p.catch) p.catch(function(){});
+}
+/* Full screen is presentation mode too: a deck filling a screen is a deck in front of a
+   room, so the switches and the Review button fade out of it exactly the way they do when
+   the presenter window opens, and come back the same way — by putting the pointer on the
+   corner they live in. See "presentation mode" in deck.css for what goes and what stays.
+
+   Its own attribute rather than reusing data-present, because the two modes start and end
+   independently: leaving full screen must not put the chrome back while the notes are
+   still up, and closing the notes must not put it back on a deck still filling a wall.
+   Listening for the event rather than setting this inside fullToggle also covers the ways
+   out that never reach that function — Escape, and the browser's own exit button. */
+['fullscreenchange','webkitfullscreenchange'].forEach(function(ev){
+  document.addEventListener(ev,function(){
+    if(document.fullscreenElement||document.webkitFullscreenElement) root.dataset.full='1';
+    else delete root.dataset.full;
+  });
+});
+tbtn.addEventListener('click',e=>{e.stopPropagation(); toggleTheme();}); paintTheme();
+const SEC=[null,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3,4,4,4],PROG=[0,0.0625,0.125,0.1875,0.25,0.3125,0.375,0.4375,0.5,0.5625,0.625,0.6875,0.75,0.8125,0.875,0.9375,1,0.09090909090909091,0.18181818181818182,0.2727272727272727,0.36363636363636365,0.45454545454545453,0.5454545454545454,0.6363636363636364,0.7272727272727273,0.8181818181818182,0.9090909090909091,1,0.3333333333333333,0.6666666666666666,1];
+const segs=[...document.querySelectorAll('#segbar .fl')],chips=[...document.querySelectorAll('#minispine .chip')];
+// Only the segment of the section we are in animates. The others change at once, so
+// a deck opened in the middle, or a jump across sections, does not sweep every
+// finished segment full together.
+function loc(i){const k=SEC[i];
+  segs.forEach((f,s)=>{f.style.transition=(s===k)?'':'none';
+    f.style.transform='scaleX('+(k==null?0:(s<k?1:s===k?PROG[i]:0))+')';});
+  chips.forEach(c=>{const s=+c.dataset.k, here=s===k;
+    c.classList.toggle('active',here);});
+  document.getElementById('minispine').style.opacity=(k==null?0:1);}
+// The whole row of chips when it fits to the right of the switches, and when it does not,
+// the row an upright screen shows: see "a row of chips too long for its screen" in
+// deck.css. A row pressed onto two lines starts at the left edge, so it fails the same
+// test. 12px is the gap the phone band leaves between the switches and the chips. Measured
+// again when the room or the names can change: the window's size, and the language.
+const chipCorner=document.querySelector('.deck-chrome');
+function fitChips(){const ms=document.getElementById('minispine');ms.classList.remove('compact');
+  ms.classList.toggle('compact',chips[0].getBoundingClientRect().left<chipCorner.getBoundingClientRect().right+12);}
+fitChips();addEventListener('resize',fitChips);
+if(document.fonts)document.fonts.ready.then(fitChips);
+new MutationObserver(fitChips).observe(root,{attributes:true,attributeFilter:['data-lang']});
+// Typewriter reveal for mono code/prompts. This is a keystroke model rather
+// than a wipe: gaps are drawn log-normally and then multiplied by what the
+// hands are actually doing (which finger, which hand, is shift held), and the
+// run length between stops comes from how hard the NEXT token is, so easy
+// clauses stream and unfamiliar tokens interrupt. Tuned in shared/typing-lab.html.
+// Preserves syntax-colored spans; respects reduced-motion; cancels on navigation.
+const TYPE = {
+  wpm: 300,          // target pace, five characters to a word
+  lead: 100,         // ms of stillness before the first keystroke
+  sigma: 0.60,       // spread of the gap at a stop
+  burstPause: 12,    // a stop, relative to a keystroke inside a run
+  fluency: 1.6,      // how easily familiar material streams
+  maxRun: 60,        // hard ceiling on one fluent run, in characters
+  tight: 0.15,       // spread inside a run: fast and even, it is one motor unit
+  maxMs: 2000        // ceiling on a single reveal. A long block compresses, but the
+                     // SHAPE survives, and the shape is what reads as typing. 0 = no cap.
+                     // Two seconds, set by Mike 2026-08-22. It was 4000, and a long
+                     // passage took long enough that the room waited on the slide.
+};
+const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+let typeGen = 0;
+/* The typewriter reveals every text node it walks — so anything the HAND wrote has to be
+   skipped, or the machine ends up typing it. A "hand-in" is a handwritten annotation
+   sitting inside a code block (a label pencilled onto a printout).
+   TWO RULES, and they pull in opposite directions until you state both. The hand is never
+   TYPED, because a person does not write one character per keystroke. But it must not be
+   on screen before the line it points at, or it is an arrow aimed at nothing. So: skipped
+   by the walker below, hidden by CSS while the machine types, and faded in whole once the
+   reveal finishes (the "typed" class, set at the end of typeIn).
+   NOTE: no backticks anywhere in here — this function lives inside a template literal. */
+function textNodes(el){
+  const w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT,{acceptNode:function(n){
+    for(let p=n.parentNode;p&&p!==el;p=p.parentNode)
+      if(p.classList&&p.classList.contains("hand-in")) return NodeFilter.FILTER_REJECT;
+    return NodeFilter.FILTER_ACCEPT;
+  }}),a=[];let t;while(t=w.nextNode())a.push(t);return a;}
+
+/* QWERTY: which hand, which finger, and whether the key needs shift. */
+const TW_ROWS={L:{0:"`1qaz",1:"2wsx",2:"3edc",3:"45rfvtgb"},R:{3:"67yhnujm",2:"8ik,",1:"9ol.",0:"0p;/-='[]\\"}};
+const TW_KEY={}; for(const h in TW_ROWS) for(const f in TW_ROWS[h]) for(const c of TW_ROWS[h][f]) TW_KEY[c]={h:h,f:+f};
+const TW_SHIFTED={"~":"`","!":"1","@":"2","#":"3","$":"4","%":"5","^":"6","&":"7","*":"8","(":"9",")":"0",
+  "_":"-","+":"=","{":"[","}":"]","|":"\\",":":";","\"":"'","<":",",">":".","?":"/"};
+function twKey(ch){
+  if(ch===" ") return {h:"T",f:9,shift:false};
+  const lo=ch.toLowerCase();
+  if(ch!==lo&&TW_KEY[lo]) return {h:TW_KEY[lo].h,f:TW_KEY[lo].f,shift:true};
+  if(TW_SHIFTED[ch]&&TW_KEY[TW_SHIFTED[ch]]) return {h:TW_KEY[TW_SHIFTED[ch]].h,f:TW_KEY[TW_SHIFTED[ch]].f,shift:true};
+  if(TW_KEY[lo]) return {h:TW_KEY[lo].h,f:TW_KEY[lo].f,shift:false};
+  return {h:"?",f:-1,shift:false};
+}
+const TW_COMMON=new Set(("the be to of and a in that have i it for not on with he as you do at this but his by from "+
+ "they we say her she or an will my one all would there their what so up out if about who get which go me when make "+
+ "can like time no just him know take people into year your good some could them see other than then now look only "+
+ "come its over think also back after use two how our work first well way even new want because any these give day "+
+ "most us is are was were been has had file should show keep write let each part open press copy more own "+
+ "def return for if else import from print with class self test true false none or not git cd ls make npm node python").split(" "));
+function twHard(tok){
+  if(!tok) return 0;
+  const lo=tok.toLowerCase().replace(/[^a-z0-9_.]/g,"");
+  let d=0;
+  if(TW_COMMON.has(lo)) d-=0.26;                    // typed a thousand times already
+  d+=Math.max(0,tok.length-5)*0.05;                 // long words need looking at
+  if(/[0-9]/.test(tok)) d+=0.20;                    // digits live on the top row
+  if(/[_.\-\/\\]/.test(tok)) d+=0.18;               // index.html, split_bill
+  if(/[A-Z]/.test(tok.slice(1))) d+=0.15;           // camelCase: a shift mid-token
+  if(/^[^A-Za-z0-9]+$/.test(tok)) d+=0.25;          // a run of symbols
+  return d;
+}
+function twToken(t,i){
+  if(!/[A-Za-z0-9_.\-]/.test(t[i])) return t[i];
+  let j=i; while(j<t.length&&/[A-Za-z0-9_.\-]/.test(t[j])) j++;
+  return t.slice(i,j);
+}
+let twSpare=null;
+function twGauss(){ if(twSpare!==null){const v=twSpare;twSpare=null;return v;}
+  let u,w,q; do{u=Math.random()*2-1;w=Math.random()*2-1;q=u*u+w*w;}while(!q||q>=1);
+  const m=Math.sqrt(-2*Math.log(q)/q); twSpare=w*m; return u*m; }
+
+/* Per-character schedule: ms from the start, for each character. */
+function twSchedule(text){
+  const BOUND=" \n\t.,;:!?()[]{}<>\"'/=+-*_&|", CLAUSE=".,;:!?";
+  const base=60000/(TYPE.wpm*5);
+  const raw=new Float64Array(text.length);
+  let prev=null, prevCh="", run=0, atLineStart=true;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(atLineStart&&(ch===" "||ch==="\t")){ raw[i]=0; continue; }   // an editor supplies indentation
+    if(ch!=="\n"&&ch!==" ") atLineStart=false;
+    const tokenStart = run>0 && BOUND.indexOf(prevCh)>-1 && BOUND.indexOf(ch)<0;
+    let stop=false;
+    if(run>0){
+      if(run>=TYPE.maxRun) stop=true;
+      else if(CLAUSE.indexOf(prevCh)>-1) stop=Math.random()<0.85;   // a clause break is planning
+      else if(tokenStart) stop=Math.random()<Math.max(0,(0.10+twHard(twToken(text,i)))/TYPE.fluency);
+    }
+    let m = stop ? TYPE.burstPause*Math.exp(twGauss()*TYPE.sigma)
+                 : Math.exp(twGauss()*TYPE.tight);
+    run = stop ? 1 : run+1;
+    const k=twKey(ch);
+    if(prev&&k.f>=0&&prev.f>=0){
+      if(prevCh===ch) m*=0.72;             // a doubled letter: one finger, twice
+      else if(prev.h!==k.h) m*=0.82;       // hands alternate and prepare in parallel
+      else if(prev.f===k.f) m*=1.95;       // same finger, different key: it has to travel
+    }
+    if(k.shift&&!(prev&&prev.shift)) m*=1.45;   // shift is a chord
+    if(ch==="\n") m*=3.2;
+    raw[i]=m; prev=k; prevCh=ch;
+    if(ch==="\n") atLineStart=true;
+  }
+  let sum=0; for(let i=0;i<raw.length;i++) sum+=raw[i];             // renormalise to the target pace
+  const scale = sum ? (base*text.length)/sum : 1;
+  const at=new Float64Array(text.length); let t=TYPE.lead;
+  for(let i=0;i<text.length;i++){ t+=raw[i]*scale; at[i]=t; }
+  const last=at[at.length-1]||0;                                  // else a 400-char block runs for 17s
+  if(TYPE.maxMs&&last>TYPE.maxMs){ const c=TYPE.maxMs/last; for(let i=0;i<at.length;i++) at[i]*=c; }
+  return at;
+}
+
+function typeIn(slide){
+  const gen = ++typeGen;
+  slide.querySelectorAll(".typewrite").forEach(el=>{
+    if(!el.__tw){ el.style.minHeight = el.offsetHeight+"px"; el.__tw = textNodes(el).map(n=>({n:n, s:n.nodeValue})); }
+    const parts = el.__tw, total = parts.reduce((a,x)=>a+x.s.length,0);
+    // 'typed' gates the handwritten annotations: off while the machine is typing, on when
+    // it has finished, so a label never points at a line that is not there yet.
+    el.classList.remove("typed");
+    if(!total){ el.classList.add("typed"); return; }
+    // caret stays on (class 'typing') after the reveal, so it keeps blinking like a live terminal
+    if(reduceMotion){ parts.forEach(x=>x.n.nodeValue=x.s); el.classList.add("typing","typed"); return; }
+    el.classList.add("typing"); parts.forEach(x=>x.n.nodeValue="");
+    const at = twSchedule(parts.map(p=>p.s).join("")), t0 = performance.now();
+    let k = 0;
+    (function frame(now){
+      if(gen!==typeGen) return;
+      const e = now - t0;
+      while(k<total && at[k]<=e) k++;
+      let c=0;
+      for(const x of parts){ if(c>=k){x.n.nodeValue="";} else if(c+x.s.length<=k){x.n.nodeValue=x.s;c+=x.s.length;} else {x.n.nodeValue=x.s.slice(0,k-c);c=k;} }
+      if(k<total) requestAnimationFrame(frame); else el.classList.add("typed");
+    })(t0);
+  });
+}
+/* ---------- presenter view (press "s") ----------
+   A second window, written into directly from here. No postMessage, no
+   BroadcastChannel, no storage: an opener may touch a window it opened, and that is
+   the one mechanism that works from file:// in every browser. */
+const NOTES = [], NOTES_WARN = null;
+let pv = null, pvBase = 0, pvTimer = null;
+function pvWrite(){
+  if(!pv || pv.closed) return;
+  const d = pv.document, cur = NOTES[i] || {t:'',n:''}, nxt = NOTES[i+1];
+  // The presenter reads in whichever language the deck is showing. Falls back to
+  // English per note, so an untranslated note is still there to be read.
+  const ja = root.dataset.lang === 'ja';
+  const pick = (o,k) => (ja && o && o[k+'ja']) || (o && o[k]) || '';
+  // ...and says which language it picked. The browser ends a Japanese line between
+  // phrases only in text it knows is Japanese; see "bilingual slides" in deck.css.
+  const lang = (o,k) => (ja && o && o[k+'ja']) ? 'ja' : 'en';
+  d.getElementById('pv-pos').textContent = (i+1) + ' / ' + slides.length;
+  d.getElementById('pv-title').textContent = pick(cur,'t');
+  d.getElementById('pv-title').lang = lang(cur,'t');
+  d.getElementById('pv-note').innerHTML = pick(cur,'n') || '<span class="pv-empty">no Say: line for this slide in the design</span>';
+  d.getElementById('pv-note').lang = lang(cur,'n');
+  d.getElementById('pv-next').innerHTML = nxt
+    ? '<b>Next &mdash; ' + pick(nxt,'t') + '</b><br>' + pick(nxt,'n').replace(/<[^>]+>/g,'').slice(0,240) + '&hellip;'
+    : '<b>End of deck</b>';
+  d.getElementById('pv-next').lang = lang(nxt,'n');
+  d.body.setAttribute('data-theme', root.dataset.theme || 'light');
+  d.body.setAttribute('data-lang', root.dataset.lang || 'en');
+}
+function pvOpen(){
+  if(pv && !pv.closed){ pv.focus(); return; }
+  pv = window.open('', 'acb-presenter', 'width=1000,height=780');
+  if(!pv){ alert('The presenter window was blocked. Allow pop-ups for this file and press s again.'); return; }
+  // The presenter window opening is the signal that this deck is now on a wall in front
+  // of a room, so the deck window goes quiet: see "presentation mode" in deck.css for
+  // what that hides and how the presenter gets it back. Cleared when the window closes.
+  root.dataset.present = '1';
+  pv.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Presenter</title><style>'
+    + ':root{--paper:#fdf6e3;--panel:#fffdf6;--ink:#073642;--muted:#657b83;--line:#e7e0c9;--accent:#268bd2;--bad:#dc322f}'
+    + 'body[data-theme=dark]{--paper:#002b36;--panel:#073642;--ink:#eee8d5;--muted:#93a1a1;--line:#0e4b59;--accent:#289be2}'
+    + '*{box-sizing:border-box;margin:0;padding:0}'
+    + 'body{background:var(--paper);color:var(--ink);font:16px/1.5 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;'
+    + 'padding:20px;display:flex;flex-direction:column;height:100vh;gap:13px}'
+    + 'body[data-lang=ja]{font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",'
+    + '"Noto Sans JP",Meiryo,sans-serif;line-break:strict}'
+    + '@supports (word-break:auto-phrase){[lang=ja]{word-break:auto-phrase;overflow-wrap:anywhere}}'
+    + 'header{display:flex;align-items:baseline;gap:16px;border-bottom:2px solid var(--line);padding-bottom:10px}'
+    + '#pv-pos{font-family:ui-monospace,monospace;font-size:15px;color:var(--muted)}'
+    + '#pv-title{font-size:21px;font-weight:800;flex:1}'
+    + '#pv-clock{font-family:ui-monospace,monospace;font-size:31px;font-weight:700;color:var(--accent);cursor:pointer;user-select:none}'
+    + '#pv-note{flex:1;overflow:auto;font-size:23px;line-height:1.56;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 24px}'
+    + '#pv-note code{font-family:ui-monospace,monospace;background:rgba(127,127,127,.16);padding:1px 5px;border-radius:4px;font-size:.88em}'
+    + '#pv-next{max-height:22%;overflow:auto;font-size:15px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;line-height:1.45}'
+    + '.pv-empty{color:var(--muted);font-style:italic}'
+    + '.pv-do{display:block;color:var(--accent);font-size:.86em;line-height:1.5;'
+    + 'border-left:3px solid var(--accent);padding-left:12px}'
+    + '#pv-warn{background:var(--bad);color:#fff;padding:8px 14px;border-radius:8px;font-size:14px;font-weight:700}'
+    + 'footer{font-size:12.5px;color:var(--muted);font-family:ui-monospace,monospace}'
+    + '</style></head><body>'
+    + (NOTES_WARN ? '<div id="pv-warn">&#9888; NOTES MAY BE OUT OF STEP &mdash; ' + NOTES_WARN + '. Check against the design before trusting them.</div>' : '')
+    + '<header><span id="pv-pos"></span><span id="pv-title"></span><span id="pv-clock" title="click to reset">00:00</span></header>'
+    + '<div id="pv-note"></div><div id="pv-next"></div>'
+    + '<footer>arrows move both windows &middot; <b>f</b> fills this screen &middot; click the clock to reset &middot; notes come from the design file</footer>'
+    + '</body></html>');
+  pv.document.close();
+  pv.document.addEventListener('keydown', function(e){
+    if(['ArrowRight','ArrowDown','PageDown',' '].indexOf(e.key)>-1){ e.preventDefault(); next(); }
+    else if(['ArrowLeft','ArrowUp','PageUp'].indexOf(e.key)>-1){ e.preventDefault(); prev(); }
+    else if((e.key==='f'||e.key==='F') && !e.metaKey && !e.ctrlKey && !e.altKey){
+      e.preventDefault(); fullToggle(pv.document); }
+  });
+  pvBase = Date.now();
+  pv.document.getElementById('pv-clock').addEventListener('click', function(){ pvBase = Date.now(); });
+  clearInterval(pvTimer);
+  pvTimer = setInterval(function(){
+    if(!pv || pv.closed){ clearInterval(pvTimer); delete root.dataset.present; return; }
+    var t = Math.floor((Date.now()-pvBase)/1000);
+    pv.document.getElementById('pv-clock').textContent =
+      String(Math.floor(t/60)).padStart(2,'0') + ':' + String(t%60).padStart(2,'0');
+  }, 500);
+  pvWrite();
+}
+window.addEventListener('beforeunload', function(){ if(pv && !pv.closed) pv.close(); });
+function show(n){
+  var prev=slides[i];
+  i=Math.max(0,Math.min(slides.length-1,n));
+  slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+  // A slide whose body carries its own animation listens for these. Its inline
+  // <script> runs at parse time (so it can register before the first show()) and
+  // uses document.currentScript.closest('section') to find itself.
+  if(prev&&prev!==slides[i]) prev.dispatchEvent(new CustomEvent('slidehide'));
+  slides[i].dispatchEvent(new CustomEvent('slideshow'));
+  loc(i);typeIn(slides[i]);location.hash=i+1;pvWrite();}
+function next(){show(i+1)}function prev(){show(i-1)}
+document.addEventListener('keydown',e=>{
+  if(['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();next();}
+  else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();prev();}
+  else if(e.key==='Home'){show(0);}else if(e.key==='End'){show(slides.length-1);}
+  // Every shortcut below is a BARE letter, never a letter with a modifier held down:
+  // Cmd/Ctrl+F is find, Cmd/Ctrl+S is save, and those belong to the browser and to the
+  // machine. Without this line the handler ate them — pressing Cmd+F on a slide opened
+  // full screen instead of the find bar. Same rule the review panel's comment key follows.
+  else if(e.metaKey||e.ctrlKey||e.altKey){return;}
+  else if(e.key==='t'||e.key==='T'){e.preventDefault();toggleTheme();}
+  else if((e.key==='j'||e.key==='J')&&toggleLang){e.preventDefault();toggleLang();}
+  
+  else if(e.key==='f'||e.key==='F'){e.preventDefault();fullToggle();}});
+/* The keys move the deck, and no click does. Clicking used to advance it — the left
+   quarter went back, anywhere else went forward — which made the slide text impossible
+   to select: every attempt to drag across a sentence ended in a click, and the deck
+   moved out from under it. A slide is now a page you can point at, so a reviewer can
+   select the line they mean and comment on that line. Presenting is unaffected:
+   arrows, PageUp/PageDown and space all still work, which is what a remote sends.
+
+   A phone has none of those keys, and tapping was how a deck moved there, so a sideways
+   swipe takes over: one finger, mostly sideways, quick, and never while text is
+   selected — dragging the selection handles must not move the slide out from under
+   them. */
+var swx=0,swy=0,swt=0;
+document.addEventListener('touchstart',e=>{
+  if(e.touches.length!==1){swt=0;return;}
+  swx=e.touches[0].clientX;swy=e.touches[0].clientY;swt=Date.now();},{passive:true});
+document.addEventListener('touchend',e=>{
+  if(!swt||e.changedTouches.length!==1)return;
+  const t=e.changedTouches[0],dx=t.clientX-swx,dy=t.clientY-swy,dt=Date.now()-swt;swt=0;
+  const rp=document.getElementById('rvpanel'), sel=window.getSelection();
+  if(rp&&rp.classList.contains('open'))return;
+  if(sel&&!sel.isCollapsed&&String(sel).trim())return;
+  if(dt>600||Math.abs(dx)<60||Math.abs(dx)<Math.abs(dy)*2)return;
+  dx<0?next():prev();},{passive:true});
+const langbtn=document.getElementById('langbtn');
+function paintLang(){langbtn.setAttribute('aria-checked', root.dataset.lang==='ja');}
+toggleLang=function(){root.dataset.lang = root.dataset.lang==='ja'?'en':'ja';
+  try{localStorage.setItem('kglang',root.dataset.lang);}catch(e){}
+  paintLang(); pvWrite();};
+langbtn.addEventListener('click',e=>{e.stopPropagation(); toggleLang();}); paintLang();
+show((parseInt(location.hash.slice(1))||1)-1);
+</script>
+
+</body></html>

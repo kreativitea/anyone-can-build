@@ -22,8 +22,11 @@ what to read or watch afterwards, and the demos built in front of the room.
 | `class-06/` | Class 6 — Studio: classifier build |
 | `class-07/` | Class 7 — Where your work lives |
 | `class-08/` | Class 8 — Studio: commit to your problem |
+| `class-09/` | Class 9 — Software architecture |
+| `class-10/` | Class 10 — Software architecture: the backend and the frontend |
 | `demos/day-trip-planner/` | Easy Peasy Vacation Planning |
 | <https://kreativitea.github.io/kg-class-demo/> | Earthquakes around Japan |
+| <https://github.com/kreativitea/anyone-can-build-timeline> | Timeline |
 
 Every page is one self-contained HTML file. Open it in a browser; there is
 nothing to install and nothing to build. In a deck, the arrow keys move,
