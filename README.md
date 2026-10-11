@@ -24,6 +24,8 @@ what to read or watch afterwards, and the demos built in front of the room.
 | `class-08/` | Class 8 — Studio: commit to your problem |
 | `class-09/` | Class 9 — Software architecture |
 | `class-10/` | Class 10 — Software architecture: the backend and the frontend |
+| `class-11/` | Class 11 — Testing |
+| `class-12/` | Class 12 — Agentic engineering |
 | `demos/day-trip-planner/` | Easy Peasy Vacation Planning |
 | <https://kreativitea.github.io/kg-class-demo/> | Earthquakes around Japan |
 | <https://github.com/kreativitea/anyone-can-build-timeline> | Timeline |
@@ -41,6 +43,14 @@ publication. Something wrong on a page is fixed at the source.
 
 ## Terms
 
-The demos use public data and credit their sources on the page — keep those
-lines if you reuse one. Everything else is course material: read it, learn from
-it, and ask before republishing it as your own.
+This material is licensed under
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). You may use
+it, change it and share it, as long as you credit Michael Omoto somewhere and
+share what you change under the same licence.
+
+To use it on other terms, for example in a paid course you do not want to
+share, contact mike [at] omoto [dot] dev for a licence.
+
+Pictures, quotations and data that came from other people keep their own
+terms: each is credited where it appears, and that credit stays with it if
+you reuse it.
