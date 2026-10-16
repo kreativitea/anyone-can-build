@@ -28,6 +28,7 @@ what to read or watch afterwards, and the demos built in front of the room.
 | `class-12/` | Class 12 — Agentic engineering |
 | `demos/day-trip-planner/` | Easy Peasy Vacation Planning |
 | <https://kreativitea.github.io/kg-class-demo/> | Earthquakes around Japan |
+| `demos/timeline-docs/` | Timeline's documents |
 | <https://github.com/kreativitea/anyone-can-build-timeline> | Timeline |
 
 Every page is one self-contained HTML file. Open it in a browser; there is
