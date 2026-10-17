@@ -128,6 +128,17 @@
   .press { font-family: Georgia, "Times New Roman", serif; }
   hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 
+  /* ---- the prototype's frames ------------------------------------------- */
+  .frames { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0; }
+  .frame { flex: 1 1 220px; max-width: 280px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); overflow: hidden; }
+  .frame-name { font: 600 12px var(--font-mono); color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  .frame-body { padding: 10px; font-size: 13.5px; }
+  .wf { border: 1px dashed var(--muted); border-radius: 6px; padding: 6px 8px; margin: 6px 0; color: var(--muted); }
+  .wf.btn { display: inline-block; border-style: solid; border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .wf.err { border-color: var(--bad); color: var(--bad); }
+  .wf.post { color: var(--ink); }
+  .hot { outline: 2px solid var(--violet); outline-offset: 2px; }
+
   @media (max-width: 560px) {
     .intro h1 { font-size: 23px; }
     .paper { padding: 14px 14px; }
@@ -160,7 +171,7 @@
   <p class="kicker">Documentation across the SDLC</p>
   <h1>The documents of the SDLC, each one written for Timeline</h1>
   <p>In a large company, each stage of the SDLC has its own documents. Different people write them,
-    and each one is reviewed before the work moves to the next stage. Below are twenty of them, in
+    and each one is reviewed before the work moves to the next stage. Below are twenty-one of them, in
     order, each one written for <strong>Timeline</strong>, the small Twitter-like app from Classes 9 to 12.</p>
   <p><strong>This is the most rigorous version: a project at a big tech company.</strong> Smaller
     companies skip some of these steps or put two documents into one. Each document says what a small
@@ -168,7 +179,7 @@
   <p class="note">Every person, quote and data row on this page is made up, and so are the dates and numbers in the written examples. A green
     line at the top of a document means it is the real one, from the Timeline repository. An orange
     line means Timeline does not have this document, and it is written here as a team would write it.
-    Linear, Jira and GitHub are named only as examples of such tools.</p>
+    Figma, Linear, Jira and GitHub are named only as examples of such tools.</p>
   <p class="note">One thread runs through all of them. Follow it:</p>
   <ul class="thread">
     <li><a href="#prd">PRD</a>: the success metric</li>
@@ -193,7 +204,7 @@
   <!-- prfaq -->
   <article class="doc" id="prfaq">
     <div class="doc-head">
-      <p class="kicker">Idea · 1 of 20</p>
+      <p class="kicker">Idea · 1 of 21</p>
       <h3>PR/FAQ</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>Product manager</dd>
@@ -231,7 +242,7 @@
   <!-- prd -->
   <article class="doc" id="prd">
     <div class="doc-head">
-      <p class="kicker">Idea · 2 of 20</p>
+      <p class="kicker">Idea · 2 of 21</p>
       <h3>PRD (product requirements document)</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>Product manager</dd>
@@ -273,7 +284,7 @@
   <!-- research -->
   <article class="doc" id="research">
     <div class="doc-head">
-      <p class="kicker">Idea · 3 of 20</p>
+      <p class="kicker">Idea · 3 of 21</p>
       <h3>User research notes</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>User researcher</dd>
@@ -313,16 +324,78 @@
   <h2>Design</h2>
   <p class="gloss">What it will be, and what it will not be.</p>
   <ol class="toc" start="4">
+    <li><a href="#prototype">Design prototype</a> <span class="who">· product designer</span></li>
     <li><a href="#ux-test">UX test plan and findings</a> <span class="who">· UX researcher or designer</span></li>
     <li><a href="#design-doc">Design doc</a> <span class="who">· tech lead</span></li>
     <li><a href="#adr">Architecture decision record</a> <span class="who">· engineer</span></li>
     <li><a href="#data-inventory">Data inventory and privacy note</a> <span class="who">· engineer and privacy</span></li>
   </ol>
 
+  <!-- prototype -->
+  <article class="doc" id="prototype">
+    <div class="doc-head">
+      <p class="kicker">Design · 4 of 21</p>
+      <h3>Design prototype</h3>
+      <dl class="meta">
+        <dt>Usually written by</dt><dd>Product designer</dd>
+        <dt>Its review</dt><dd>Design review (often called a design critique)</dd>
+        <dt>At a small company</dt><dd>Often a few frames in a design tool such as Figma, or a sketch on paper, shown to the team before anyone writes code. Some teams skip it and build a rough first version instead.</dd>
+      </dl>
+      <p class="purpose">The screens drawn before they are built, joined so that a click moves from one to the next. People can try it, and the team can change it in minutes instead of days.</p>
+      <p class="links">Comes from: <a href="#prd">PRD</a>, <a href="#research">research notes</a> · Leads to: <a href="#ux-test">UX test</a>, <a href="#design-doc">design doc</a></p>
+    </div>
+    <div class="paper">
+      <p class="src written">Written for this page. Timeline has no prototype; these three frames are how one would look. The words on the screens are Timeline's real ones.</p>
+      <h4>Frames</h4>
+      <div class="frames">
+        <div class="frame">
+          <div class="frame-name">1 · Post</div>
+          <div class="frame-body">
+            <div class="wf">Your name</div>
+            <div class="wf">What is happening?</div>
+            <div>0 / 280 <span class="wf btn hot">Post</span></div>
+            <div class="wf post"><strong>Aiko</strong> · 15:02<br>the library is open late tonight</div>
+          </div>
+        </div>
+        <div class="frame">
+          <div class="frame-name">2 · Posted</div>
+          <div class="frame-body">
+            <div class="wf">Your name: Ken</div>
+            <div class="wf">What is happening?</div>
+            <div class="wf post"><strong>Ken</strong> · 15:04<br>room change: B204</div>
+            <div class="wf post"><strong>Aiko</strong> · 15:02<br>the library is open late tonight</div>
+          </div>
+        </div>
+        <div class="frame">
+          <div class="frame-name">3 · Too long</div>
+          <div class="frame-body">
+            <div class="wf">Your name: Ken</div>
+            <div class="wf">(320 characters of text)</div>
+            <div><span style="color:var(--bad);font-weight:700">320 / 280</span> <span class="wf btn">Post</span></div>
+            <div class="wf err">The post must be 280 characters or fewer.</div>
+          </div>
+        </div>
+      </div>
+      <h4>How the frames are joined</h4>
+      <div class="scroll"><table>
+        <tr><th>On</th><th>The person does</th><th>Goes to</th></tr>
+        <tr><td>1 · Post</td><td>types a name and a short post, presses <strong>Post</strong> (outlined)</td><td>2 · Posted</td></tr>
+        <tr><td>1 · Post</td><td>pastes a long paragraph, presses <strong>Post</strong></td><td>3 · Too long</td></tr>
+        <tr><td>3 · Too long</td><td>shortens the text, presses <strong>Post</strong></td><td>2 · Posted</td></tr>
+      </table></div>
+      <h4>From the design review, 2026-04-18</h4>
+      <ul>
+        <li>Ravi (tech lead): a new post appearing in another window cannot be shown in a prototype. Test it on the real page in the <a href="#ux-test">UX test</a>.</li>
+        <li>Hana (PM): research R3 asked <em>"Do I put my real name?"</em> Nothing on frame 1 answers it. Left open for the UX test.</li>
+        <li>Decided: the count stays beside <strong>Post</strong>, and turns red past 280.</li>
+      </ul>
+    </div>
+  </article>
+
   <!-- ux-test -->
   <article class="doc" id="ux-test">
     <div class="doc-head">
-      <p class="kicker">Design · 4 of 20</p>
+      <p class="kicker">Design · 5 of 21</p>
       <h3>UX test plan and findings</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>UX researcher or designer</dd>
@@ -330,7 +403,7 @@
         <dt>At a small company</dt><dd>Usually informal: watch three to five people use the screen, and write down what broke. The plan is a list of tasks in a notebook.</dd>
       </dl>
       <p class="purpose">The tasks we will give people, what we will watch for, and then what actually broke when they tried.</p>
-      <p class="links">Comes from: <a href="#research">research notes</a> · Leads to: <a href="#design-doc">design doc</a>, <a href="#experiment">experiment</a></p>
+      <p class="links">Comes from: <a href="#research">research notes</a>, <a href="#prototype">prototype</a> · Leads to: <a href="#design-doc">design doc</a>, <a href="#experiment">experiment</a></p>
     </div>
     <div class="paper">
       <p class="src written">Written for this page. The screen is Timeline's real one (<em>Your name</em>, <em>What is happening?</em>, the <code>0 / 280</code> count, <strong>Post</strong>); the sessions are made up.</p>
@@ -356,7 +429,7 @@
   <!-- design-doc -->
   <article class="doc" id="design-doc">
     <div class="doc-head">
-      <p class="kicker">Design · 5 of 20</p>
+      <p class="kicker">Design · 6 of 21</p>
       <h3>Design doc</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>Tech lead</dd>
@@ -422,7 +495,7 @@ index.html · style.css · app.js  ──  server.py  ────────�
   <!-- adr -->
   <article class="doc" id="adr">
     <div class="doc-head">
-      <p class="kicker">Design · 6 of 20</p>
+      <p class="kicker">Design · 7 of 21</p>
       <h3>Architecture decision record (ADR)</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>Engineer</dd>
@@ -458,7 +531,7 @@ index.html · style.css · app.js  ──  server.py  ────────�
   <!-- data-inventory -->
   <article class="doc" id="data-inventory">
     <div class="doc-head">
-      <p class="kicker">Design · 7 of 20</p>
+      <p class="kicker">Design · 8 of 21</p>
       <h3>Data inventory and privacy note</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>Engineer, with a privacy specialist</dd>
@@ -496,7 +569,7 @@ index.html · style.css · app.js  ──  server.py  ────────�
   <p class="kicker">Stage 3 of 5</p>
   <h2>Build</h2>
   <p class="gloss">The smallest version that actually works.</p>
-  <ol class="toc" start="8">
+  <ol class="toc" start="9">
     <li><a href="#ticket">Ticket</a> <span class="who">· PM or engineer</span></li>
     <li><a href="#plan">Task plan</a> <span class="who">· engineer</span></li>
     <li><a href="#pr">Pull request description</a> <span class="who">· engineer</span></li>
@@ -506,7 +579,7 @@ index.html · style.css · app.js  ──  server.py  ────────�
   <!-- ticket -->
   <article class="doc" id="ticket">
     <div class="doc-head">
-      <p class="kicker">Build · 8 of 20</p>
+      <p class="kicker">Build · 9 of 21</p>
       <h3>Ticket</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>PM or engineer</dd>
@@ -548,7 +621,7 @@ index.html · style.css · app.js  ──  server.py  ────────�
   <!-- plan -->
   <article class="doc" id="plan">
     <div class="doc-head">
-      <p class="kicker">Build · 9 of 20</p>
+      <p class="kicker">Build · 10 of 21</p>
       <h3>Task plan</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>Engineer</dd>
@@ -613,7 +686,7 @@ index.html · style.css · app.js  ──  server.py  ────────�
   <!-- pr -->
   <article class="doc" id="pr">
     <div class="doc-head">
-      <p class="kicker">Build · 10 of 20</p>
+      <p class="kicker">Build · 11 of 21</p>
       <h3>Pull request description</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>Engineer</dd>
@@ -653,7 +726,7 @@ OK</code></pre>
   <!-- test-plan -->
   <article class="doc" id="test-plan">
     <div class="doc-head">
-      <p class="kicker">Build · 11 of 20</p>
+      <p class="kicker">Build · 12 of 21</p>
       <h3>Test plan</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>Engineer or QA</dd>
@@ -684,7 +757,7 @@ OK</code></pre>
   <p class="kicker">Stage 4 of 5</p>
   <h2>Prod</h2>
   <p class="gloss">It is live, and strangers are using it.</p>
-  <ol class="toc" start="12">
+  <ol class="toc" start="13">
     <li><a href="#qa-run">QA run</a> <span class="who">· QA</span></li>
     <li><a href="#bug-report">Bug report</a> <span class="who">· QA or anyone</span></li>
     <li><a href="#deploy-runbook">Deployment runbook</a> <span class="who">· release manager or SRE</span></li>
@@ -696,7 +769,7 @@ OK</code></pre>
   <!-- qa-run -->
   <article class="doc" id="qa-run">
     <div class="doc-head">
-      <p class="kicker">Prod · 12 of 20</p>
+      <p class="kicker">Prod · 13 of 21</p>
       <h3>QA run</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>QA (quality assurance)</dd>
@@ -728,7 +801,7 @@ OK</code></pre>
   <!-- bug-report -->
   <article class="doc" id="bug-report">
     <div class="doc-head">
-      <p class="kicker">Prod · 13 of 20</p>
+      <p class="kicker">Prod · 14 of 21</p>
       <h3>Bug report</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>QA, or anyone who finds a bug</dd>
@@ -762,7 +835,7 @@ OK</code></pre>
   <!-- deploy-runbook -->
   <article class="doc" id="deploy-runbook">
     <div class="doc-head">
-      <p class="kicker">Prod · 14 of 20</p>
+      <p class="kicker">Prod · 15 of 21</p>
       <h3>Deployment runbook</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>Release manager or SRE (site reliability engineer)</dd>
@@ -804,7 +877,7 @@ sudo systemctl restart timeline</code></pre>
   <!-- incident-runbook -->
   <article class="doc" id="incident-runbook">
     <div class="doc-head">
-      <p class="kicker">Prod · 15 of 20</p>
+      <p class="kicker">Prod · 16 of 21</p>
       <h3>On-call and incident runbook</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>SRE</dd>
@@ -842,7 +915,7 @@ sudo systemctl restart timeline</code></pre>
   <!-- postmortem -->
   <article class="doc" id="postmortem">
     <div class="doc-head">
-      <p class="kicker">Prod · 16 of 20</p>
+      <p class="kicker">Prod · 17 of 21</p>
       <h3>Postmortem</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>Whoever ran the incident</dd>
@@ -886,7 +959,7 @@ sudo systemctl restart timeline</code></pre>
   <!-- release-notes -->
   <article class="doc" id="release-notes">
     <div class="doc-head">
-      <p class="kicker">Prod · 17 of 20</p>
+      <p class="kicker">Prod · 18 of 21</p>
       <h3>Release notes</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>PM</dd>
@@ -913,7 +986,7 @@ sudo systemctl restart timeline</code></pre>
   <p class="kicker">Stage 5 of 5</p>
   <h2>Analysis</h2>
   <p class="gloss">Did it work?</p>
-  <ol class="toc" start="18">
+  <ol class="toc" start="19">
     <li><a href="#tracking-plan">Tracking plan</a> <span class="who">· data scientist or PM</span></li>
     <li><a href="#experiment">Experiment doc</a> <span class="who">· data scientist</span></li>
     <li><a href="#retro">Retrospective</a> <span class="who">· the team</span></li>
@@ -922,7 +995,7 @@ sudo systemctl restart timeline</code></pre>
   <!-- tracking-plan -->
   <article class="doc" id="tracking-plan">
     <div class="doc-head">
-      <p class="kicker">Analysis · 18 of 20</p>
+      <p class="kicker">Analysis · 19 of 21</p>
       <h3>Tracking plan</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>Data scientist or PM</dd>
@@ -961,7 +1034,7 @@ sudo systemctl restart timeline</code></pre>
   <!-- experiment -->
   <article class="doc" id="experiment">
     <div class="doc-head">
-      <p class="kicker">Analysis · 19 of 20</p>
+      <p class="kicker">Analysis · 20 of 21</p>
       <h3>Experiment doc</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>Data scientist</dd>
@@ -1007,7 +1080,7 @@ sudo systemctl restart timeline</code></pre>
   <!-- retro -->
   <article class="doc" id="retro">
     <div class="doc-head">
-      <p class="kicker">Analysis · 20 of 20</p>
+      <p class="kicker">Analysis · 21 of 21</p>
       <h3>Retrospective</h3>
       <dl class="meta">
         <dt>Usually written by</dt><dd>The team, together</dd>

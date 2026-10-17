@@ -26,6 +26,8 @@ what to read or watch afterwards, and the demos built in front of the room.
 | `class-10/` | Class 10 — Software architecture: the backend and the frontend |
 | `class-11/` | Class 11 — Testing |
 | `class-12/` | Class 12 — Agentic engineering |
+| `class-13/` | Class 13 — Documentation across the SDLC · Studio: the design doc |
+| `class-14/` | Class 14 — Studio: midterm rehearsal |
 | `demos/day-trip-planner/` | Easy Peasy Vacation Planning |
 | <https://kreativitea.github.io/kg-class-demo/> | Earthquakes around Japan |
 | `demos/timeline-docs/` | Timeline's documents |
