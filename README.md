@@ -30,6 +30,8 @@ what to read or watch afterwards, and the demos built in front of the room.
 | `class-14/` | Class 14 — Studio: midterm rehearsal |
 | `class-17/` | Class 17 — Build vs. buy · Guided integration: Supabase |
 | `class-18/` | Class 18 — Workshop: Supabase, Render and Sentry, on your own app |
+| `on-demand-A/` | On-Demand A — Computing foundations, continued: how data is stored and represented |
+| `on-demand-B/` | On-Demand B — Documentary: *The Thinking Game* |
 | `demos/day-trip-planner/` | Easy Peasy Vacation Planning |
 | <https://kreativitea.github.io/kg-class-demo/> | Earthquakes around Japan |
 | `demos/timeline-docs/` | Timeline's documents |
